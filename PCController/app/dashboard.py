@@ -926,6 +926,30 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
 
   <!-- TAB: FILES & UNIVERSAL CLIPBOARD -->
   <div id="tab-files" class="tab-content">
+    <!-- Voice Note Recorder Card -->
+    <div class="card" style="border-color: rgba(168, 85, 247, 0.4); background: linear-gradient(135deg, #1e1b4b 0%, #131c2e 100%);">
+      <div class="card-title" style="color: #c084fc;">
+        <span>🎙️ Live Voice Note Sender</span>
+      </div>
+      <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:12px;">
+        Mobile mic se bolein. Stop dabate hi PC par voice note receive hoga aur PC speakers par foran play ho jayega.
+      </div>
+      <div id="voiceRecordControls" style="display:flex; flex-direction:column; gap:8px;">
+        <button id="startVoiceRecBtn" class="btn" style="background:#7c3aed; border-color:#8b5cf6; padding:14px; font-weight:700;" onclick="startWebVoiceRecord()">
+          🎤 Tap to Record Voice Note
+        </button>
+        <div id="recordingActiveBox" style="display:none; background:rgba(239, 68, 68, 0.2); border:1.5px solid #ef4444; border-radius:10px; padding:12px; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
+            <span id="recTimerText" style="font-weight:800; color:#fca5a5; font-size:0.9rem;">RECORDING: 00:00</span>
+          </div>
+          <button class="btn" style="background:#10b981; border:none; padding:8px 14px; font-weight:700;" onclick="stopAndSendWebVoice()">
+            Stop & Send 🚀
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- File Drop to PC -->
     <div class="card" style="border-color: rgba(59, 130, 246, 0.4);">
       <div class="card-title" style="color:#60a5fa;">
@@ -1342,6 +1366,80 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     }} catch(e) {{
       box.textContent = "Error fetching MAC";
     }}
+  }}
+
+  // Web Voice Recording via MediaRecorder
+  let webMediaRecorder = null;
+  let voiceAudioChunks = [];
+  let voiceRecTimer = null;
+  let voiceSecCount = 0;
+
+  async function startWebVoiceRecord() {{
+    try {{
+      const stream = await navigator.mediaDevices.getUserMedia({{ audio: true }});
+      voiceAudioChunks = [];
+      webMediaRecorder = new MediaRecorder(stream);
+      webMediaRecorder.ondataavailable = (e) => {{
+        if (e.data.size > 0) voiceAudioChunks.push(e.data);
+      }};
+      webMediaRecorder.start();
+
+      document.getElementById("startVoiceRecBtn").style.display = "none";
+      const activeBox = document.getElementById("recordingActiveBox");
+      if (activeBox) activeBox.style.display = "flex";
+
+      voiceSecCount = 0;
+      updateRecTimer();
+      voiceRecTimer = setInterval(() => {{
+        voiceSecCount++;
+        updateRecTimer();
+      }}, 1000);
+      showToast("🎙️ Recording Voice... Bolye!");
+    }} catch(e) {{
+      showToast("⚠️ Mic access error: " + e.message, true);
+    }}
+  }}
+
+  function updateRecTimer() {{
+    const m = String(Math.floor(voiceSecCount / 60)).padStart(2, '0');
+    const s = String(voiceSecCount % 60).padStart(2, '0');
+    const el = document.getElementById("recTimerText");
+    if (el) el.textContent = `RECORDING: ${{m}}:${{s}}`;
+  }}
+
+  async function stopAndSendWebVoice() {{
+    if (!webMediaRecorder) return;
+    clearInterval(voiceRecTimer);
+    showToast("📤 Sending Voice Note to PC...");
+
+    webMediaRecorder.onstop = async () => {{
+      const audioBlob = new Blob(voiceAudioChunks, {{ type: "audio/webm" }});
+      const formData = new FormData();
+      formData.append("file", audioBlob, `Voice_${{Date.now()}}.webm`);
+
+      try {{
+        const res = await authFetch("/api/voice/send?auto_play=true", {{
+          method: "POST",
+          body: formData
+        }});
+        const data = await res.json();
+        if (data.success) {{
+          showToast("🎙️ Voice note PC par send aur play ho gaya!");
+          loadPCFilesWeb();
+        }} else {{
+          showToast("❌ Failed to send voice note", true);
+        }}
+      }} catch(err) {{
+        showToast("❌ Upload error", true);
+      }}
+
+      // Reset UI
+      document.getElementById("startVoiceRecBtn").style.display = "flex";
+      const activeBox = document.getElementById("recordingActiveBox");
+      if (activeBox) activeBox.style.display = "none";
+    }};
+
+    webMediaRecorder.stop();
   }}
 
   function connectWebSocket() {{

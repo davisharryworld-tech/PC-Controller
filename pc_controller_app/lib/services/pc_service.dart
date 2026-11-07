@@ -356,6 +356,20 @@ class PCService {
     }
   }
 
+  Future<bool> sendVoiceNoteToPC(String filePath, {bool autoPlay = true}) async {
+    try {
+      final uri = Uri.parse('$httpBaseUrl/api/voice/send?auto_play=$autoPlay');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll(authHeaders);
+      final fileName = filePath.split(Platform.pathSeparator).last;
+      request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
+      final response = await request.send();
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> uploadFileToPC(String filePath, String fileName) async {
     try {
       final request = http.MultipartRequest('POST', Uri.parse('$httpBaseUrl/api/files/upload'));

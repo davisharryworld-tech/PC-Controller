@@ -220,7 +220,88 @@ async def remove_contact(name: str):
 
 
 RECEIVED_DIR = os.path.join(os.path.expanduser("~"), "Downloads", "PC_Controller_Received")
+VOICE_DIR = os.path.join(RECEIVED_DIR, "Voice_Notes")
 os.makedirs(RECEIVED_DIR, exist_ok=True)
+os.makedirs(VOICE_DIR, exist_ok=True)
+
+
+def play_audio_on_pc(file_path: str):
+    """Plays audio on PC speakers asynchronously using Windows COM / Media Player."""
+    import subprocess
+    import winsound
+    try:
+        winsound.MessageBeep(winsound.MB_ICONASTERISK)
+    except Exception:
+        pass
+    try:
+        safe_path = file_path.replace("'", "''")
+        cmd = f"""powershell -WindowStyle Hidden -Command "$p = New-Object -ComObject WMPlayer.OCX; $p.URL = '{safe_path}'; $p.controls.play(); Start-Sleep -Seconds 12" """
+        subprocess.Popen(cmd, shell=True)
+    except Exception as e:
+        logger.warning(f"Audio playback error: {e}")
+
+
+@app.post("/api/voice/send")
+async def receive_voice_note(
+    file: UploadFile = File(...),
+    auto_play: bool = True
+):
+    """
+    Receives a recorded voice note from mobile, saves it to PC Voice_Notes,
+    and plays it on PC speakers.
+    """
+    try:
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        ext = os.path.splitext(file.filename)[1] or ".m4a"
+        saved_filename = f"Voice_{timestamp}{ext}"
+        saved_path = os.path.join(VOICE_DIR, saved_filename)
+        
+        with open(saved_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        file_size = os.path.getsize(saved_path)
+        logger.info(f"🎙️ Voice note received and saved: {saved_path} ({file_size} bytes)")
+        
+        if auto_play:
+            play_audio_on_pc(saved_path)
+            
+        return {
+            "success": True,
+            "message": f"Voice note received & playing on PC! ({saved_filename})",
+            "filename": saved_filename,
+            "path": saved_path,
+            "size": file_size,
+        }
+    except Exception as e:
+        logger.error(f"Failed to process voice note: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+
+
+@app.get("/api/voice/list")
+async def list_voice_notes():
+    """Lists all voice recordings received from mobile."""
+    recordings = []
+    if os.path.exists(VOICE_DIR):
+        for f in os.listdir(VOICE_DIR):
+            fp = os.path.join(VOICE_DIR, f)
+            if os.path.isfile(fp):
+                recordings.append({
+                    "name": f,
+                    "size_kb": round(os.path.getsize(fp) / 1024, 1),
+                    "modified": os.path.getmtime(fp),
+                })
+    return {"voice_notes": sorted(recordings, key=lambda x: x["modified"], reverse=True)}
+
+
+@app.get("/api/voice/play/{filename}")
+async def play_specific_voice_note(filename: str):
+    """Triggers playback of a specific voice note on PC speakers."""
+    fp = os.path.join(VOICE_DIR, filename)
+    if os.path.exists(fp):
+        play_audio_on_pc(fp)
+        return {"success": True, "message": f"Playing '{filename}' on PC"}
+    return JSONResponse(status_code=404, content={"success": False, "message": "Voice note not found"})
 
 
 def capture_pc_frame(scale: float = 0.55, quality: int = 65, show_cursor: bool = True) -> bytes:
