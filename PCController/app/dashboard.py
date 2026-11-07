@@ -538,10 +538,12 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     <div class="speech-box">
       <input type="text" id="cmdInput" class="input-bar" placeholder="Bolye ya likhein: 'open chat gpt' ya 'ali ki chat kholo'...">
       <button id="langToggleBtn" class="btn" style="padding:0 8px; font-size:0.75rem; background:#1e293b; border-color:#334155; font-weight:800; color:#4ade80;" onclick="toggleVoiceLang()" title="Toggle Urdu / English Mic">🌐 UR</button>
-      <button id="micBtn" class="mic-btn" onclick="toggleVoiceRecognition()" title="Voice input">🎤</button>
-      <button class="btn" style="background: var(--accent); border-color: var(--accent); padding: 0 16px;" onclick="sendTextCommand()">Send</button>
+      <button id="micBtn" class="mic-btn" onclick="toggleVoiceRecognition()" title="Voice Command">🎤</button>
+      <button class="btn" style="background:#7c3aed; border-color:#8b5cf6; padding:0 10px; font-weight:700; white-space:nowrap; font-size:0.76rem;" onclick="startWebVoiceRecord()" title="Record real voice note and send to PC">🎙️ Voice Note</button>
+      <button class="btn" style="background: var(--accent); border-color: var(--accent); padding: 0 14px;" onclick="sendTextCommand()">Send</button>
     </div>
     <div class="chips-bar">
+      <button class="chip" style="border-color:#a855f7; color:#c084fc; font-weight:700;" onclick="startWebVoiceRecord()">🎙️ Record Voice Note</button>
       <button class="chip" style="border-color:#10b981; color:#34d399;" onclick="quickVoice('open chat gpt')">🤖 ChatGPT</button>
       <button class="chip" onclick="quickVoice('open youtube')">▶️ YouTube</button>
       <button class="chip" onclick="quickVoice('open my number chat')">💬 My Chat</button>
@@ -1375,6 +1377,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   let voiceSecCount = 0;
 
   async function startWebVoiceRecord() {{
+    switchTab('files');
     try {{
       const stream = await navigator.mediaDevices.getUserMedia({{ audio: true }});
       voiceAudioChunks = [];
