@@ -898,6 +898,125 @@ def system_cancel_shutdown() -> str:
         return f"Cancel error: {e}"
 
 
+_auto_proceed_active = False
+_auto_proceed_thread = None
+
+def antigravity_proceed() -> str:
+    """Instantly sends Enter to active Antigravity/Terminal session to submit or proceed."""
+    ensure_desktop_attached()
+    user32.keybd_event(VK_RETURN, 0, 0, 0)
+    user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+    play_feedback_sound()
+    return "⚡ Proceed / Enter Dispatched to Antigravity!"
+
+
+def toggle_auto_proceed_loop(enabled: bool = None) -> bool:
+    """Toggles background auto-proceed loop for continuous agent sessions."""
+    global _auto_proceed_active, _auto_proceed_thread
+    if enabled is None:
+        _auto_proceed_active = not _auto_proceed_active
+    else:
+        _auto_proceed_active = enabled
+
+    def _loop():
+        global _auto_proceed_active
+        while _auto_proceed_active:
+            time.sleep(8)
+            if not _auto_proceed_active:
+                break
+            try:
+                ensure_desktop_attached()
+                user32.keybd_event(VK_RETURN, 0, 0, 0)
+                user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+            except Exception:
+                pass
+
+    if _auto_proceed_active:
+        if _auto_proceed_thread is None or not _auto_proceed_thread.is_alive():
+            _auto_proceed_thread = threading.Thread(target=_loop, daemon=True)
+            _auto_proceed_thread.start()
+
+    return _auto_proceed_active
+
+
+def emergency_rescue_pc() -> str:
+    """Frees RAM working sets and releases hung processes."""
+    ensure_desktop_attached()
+    freed = 0
+    try:
+        import psutil
+        for p in psutil.process_iter(['pid', 'name']):
+            try:
+                ctypes.windll.psapi.EmptyWorkingSet(int(p.pid))
+                freed += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+    play_feedback_sound()
+    return f"🧊 Emergency Rescue Executed! Freed memory across {freed} processes."
+
+
+def generate_youtube_seo(topic: str) -> dict:
+    """Generates viral YouTube titles, SEO tags, and description and copies to PC clipboard."""
+    clean_topic = topic.strip() or "AI Automation & Tech"
+    t_clean = clean_topic.title()
+
+    titles = [
+        f"{t_clean} - Full Step-by-Step Guide (2026)",
+        f"How I Built {t_clean} in 10 Minutes (Tutorial)",
+        f"Stop Doing This! Best Way to Use {t_clean}",
+        f"{t_clean} Explained for Beginners (Easy)",
+        f"The Future of {t_clean} (What Nobody Tells You)"
+    ]
+
+    words = [w.lower() for w in clean_topic.split() if len(w) > 2]
+    tags = list(dict.fromkeys([
+        clean_topic.lower(),
+        f"{clean_topic.lower()} tutorial",
+        f"{clean_topic.lower()} 2026",
+        "how to",
+        "guide",
+        "tips and tricks",
+        "viral",
+        "trending"
+    ] + words))
+
+    description = f"""🔥 In this video, we explore everything you need to know about {t_clean}!
+
+📌 TIMESTAMPS:
+0:00 - Introduction to {t_clean}
+1:30 - Step-by-Step Walkthrough
+5:00 - Best Tips & Key Mistakes to Avoid
+8:00 - Summary & Next Steps
+
+🔔 Subscribe for more high-value content!
+#{"#".join(words[:4])} #viral #tech"""
+
+    clipboard_text = f"TITLES:\n" + "\n".join(f"- {t}" for t in titles) + f"\n\nTAGS:\n{', '.join(tags)}\n\nDESCRIPTION:\n{description}"
+    pyperclip.copy(clipboard_text)
+
+    return {
+        "topic": clean_topic,
+        "titles": titles,
+        "tags": tags,
+        "description": description,
+        "copied": True,
+        "message": f"YouTube SEO package for '{clean_topic}' copied to PC clipboard!"
+    }
+
+
+def voice_to_email(text: str) -> str:
+    """Converts voice input into email draft in Gmail."""
+    clean_text = text.strip()
+    subj = clean_text[:40] if len(clean_text) > 40 else clean_text
+    body = clean_text
+    import urllib.parse
+    gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&su={urllib.parse.quote(subj)}&body={urllib.parse.quote(body)}"
+    open_url(gmail_url)
+    return f"Opened Gmail draft: '{subj}...'"
+
+
 # Universal Action Dispatcher
 def execute_universal_action(action_type: str, payload: dict[str, Any] = None) -> dict[str, Any]:
     payload = payload or {}
@@ -1062,6 +1181,29 @@ def execute_universal_action(action_type: str, payload: dict[str, Any] = None) -
             msg = system_shutdown()
         elif act == "cancel_shutdown":
             msg = system_cancel_shutdown()
+
+        # Antigravity & AI Automation
+        elif act in ["antigravity_proceed", "proceed_now"]:
+            msg = antigravity_proceed()
+        elif act in ["toggle_auto_proceed", "auto_proceed"]:
+            state = toggle_auto_proceed_loop(payload.get("enabled"))
+            msg = f"🤖 Antigravity Auto-Proceed is now {'ACTIVE (Auto-submitting)' if state else 'PAUSED'}"
+            return {"success": True, "message": msg, "action": act, "auto_proceed": state}
+        elif act in ["rescue_pc", "emergency_rescue"]:
+            msg = emergency_rescue_pc()
+
+        # YouTube Creator & SEO
+        elif act in ["youtube_seo", "generate_youtube_seo"]:
+            top = payload.get("topic", "")
+            res = generate_youtube_seo(top)
+            return {"success": True, "message": res["message"], "action": act, "data": res}
+        elif act in ["open_youtube_studio", "youtube_upload"]:
+            msg = open_url("https://studio.youtube.com/channel/upload")
+
+        # Voice to Email
+        elif act in ["voice_to_email", "draft_email"]:
+            txt = payload.get("text", "")
+            msg = voice_to_email(txt)
 
         else:
             msg = f"Unknown action: '{action_type}'"

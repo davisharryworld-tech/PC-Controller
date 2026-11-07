@@ -107,58 +107,7 @@ class QuickTab extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
 
-        // 1-Tap Quick Workflows / Macros Card
-        _buildCard(
-          title: '⚡ 1-Tap Quick Workflows (Macros)',
-          subtitle: 'Aik tap me multiple software aur settings chalayein',
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildButton(
-                    icon: Icons.work_rounded,
-                    label: '💼 Work Mode',
-                    color: const Color(0xFF6366F1),
-                    onTap: () => pc.sendAction('macro_work_mode'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildButton(
-                    icon: Icons.sports_esports_rounded,
-                    label: '🎮 Gaming Mode',
-                    color: const Color(0xFF8B5CF6),
-                    onTap: () => pc.sendAction('macro_gaming_mode'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildButton(
-                    icon: Icons.menu_book_rounded,
-                    label: '📚 Study Mode',
-                    color: const Color(0xFF059669),
-                    onTap: () => pc.sendAction('macro_study_mode'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildButton(
-                    icon: Icons.coffee_rounded,
-                    label: '☕ Chill Mode',
-                    color: const Color(0xFFD97706),
-                    onTap: () => pc.sendAction('macro_chill_mode'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
         const SizedBox(height: 12),
 
         // Remote Power & Wake-on-LAN Card

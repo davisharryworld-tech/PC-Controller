@@ -27,7 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 10, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
 
     // Listen to PC result messages and display quick snackbar
     _pc.lastMessageNotifier.addListener(_showResultSnackbar);
@@ -168,9 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   Tab(icon: Icon(Icons.touch_app_rounded, size: 18), text: '🖱️ Mouse'),
                   Tab(icon: Icon(Icons.keyboard_alt_outlined, size: 18), text: '⌨️ Live Typing'),
                   Tab(icon: Icon(Icons.screen_share_rounded, size: 18), text: '📺 Screen'),
-                  Tab(icon: Icon(Icons.smart_display_rounded, size: 18), text: '🎬 Media'),
                   Tab(icon: Icon(Icons.send_to_mobile_rounded, size: 18), text: '📁 Files & Clip'),
-                  Tab(icon: Icon(Icons.slideshow_rounded, size: 18), text: '📊 Slides'),
                   Tab(icon: Icon(Icons.rocket_launch_rounded, size: 18), text: '🚀 Apps'),
                   Tab(icon: Icon(Icons.close_rounded, size: 18), text: '❌ Close Apps'),
                   Tab(icon: Icon(Icons.chat_bubble_outline_rounded, size: 18), text: '💬 WhatsApp'),
@@ -188,9 +186,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   TouchpadTab(),
                   KeyboardTab(),
                   ScreenTab(),
-                  MediaRemoteTab(),
                   FilesClipboardTab(),
-                  PresentationTab(),
                   AppsTab(),
                   RunningAppsTab(),
                   WhatsAppTab(),

@@ -535,12 +535,37 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       <span>🔒 Mic chalane k liye HTTPS par switch karein:</span>
       <button class="btn" style="background:#4f46e5; border-color:#6366f1; padding:4px 10px; font-size:0.75rem;" onclick="switchToHttps()">Switch to HTTPS</button>
     </div>
-    <div class="speech-box">
-      <input type="text" id="cmdInput" class="input-bar" placeholder="Bolye ya likhein: 'open chat gpt' ya 'ali ki chat kholo'...">
-      <button id="langToggleBtn" class="btn" style="padding:0 8px; font-size:0.75rem; background:#1e293b; border-color:#334155; font-weight:800; color:#4ade80;" onclick="toggleVoiceLang()" title="Toggle Urdu / English Mic">🌐 UR</button>
-      <button id="micBtn" class="mic-btn" onclick="toggleVoiceRecognition()" title="Voice Command">🎤</button>
-      <button class="btn" style="background:#7c3aed; border-color:#8b5cf6; padding:0 10px; font-weight:700; white-space:nowrap; font-size:0.76rem;" onclick="startWebVoiceRecord()" title="Record real voice note and send to PC">🎙️ Voice Note</button>
-      <button class="btn" style="background: var(--accent); border-color: var(--accent); padding: 0 14px;" onclick="sendTextCommand()">Send</button>
+    <!-- Active Recording Banner (Directly inside top card when recording) -->
+    <div id="topVoiceRecBanner" style="display:none; background:rgba(239, 68, 68, 0.2); border:1.5px solid #ef4444; border-radius:10px; padding:10px 12px; margin-bottom:8px; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#ef4444; box-shadow:0 0 10px #ef4444; animation:pulse 1s infinite;"></span>
+        <div>
+          <span id="topRecTimer" style="font-weight:800; color:#fca5a5; font-size:0.92rem;">🔴 RECORDING: 00:00</span>
+          <div style="font-size:0.7rem; color:#cbd5e1;">Stop dabate hi PC par Send ho jayega!</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn" style="background:#10b981; border:none; padding:8px 14px; font-weight:800; font-size:0.82rem;" onclick="stopAndSendWebVoice()">Stop & Send 🚀</button>
+        <button class="btn" style="background:#334155; border:none; padding:8px 10px;" onclick="cancelWebVoice()">❌</button>
+      </div>
+    </div>
+
+    <!-- Tier 1: Input Bar & Send -->
+    <div style="display:flex; gap:6px; margin-bottom:8px;">
+      <input type="text" id="cmdInput" class="input-bar" placeholder="Bolye ya likhein: 'open chat gpt', 'ali ki chat'...">
+      <button id="langToggleBtn" class="btn" style="padding:0 10px; font-size:0.75rem; background:#1e293b; border-color:#334155; font-weight:800; color:#4ade80;" onclick="toggleVoiceLang()" title="Toggle Urdu / English Mic">🌐 UR</button>
+      <button class="btn" style="background: var(--accent); border-color: var(--accent); padding: 0 16px; font-weight:700;" onclick="sendTextCommand()">Send</button>
+    </div>
+
+    <!-- Tier 2: Two Big Mobile Buttons (100% visible, never off-screen) -->
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+      <button id="mainVoiceNoteBtn" class="btn" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); border:1px solid #a855f7; padding:12px 8px; font-weight:800; font-size:0.84rem; color:#fff; box-shadow:0 2px 10px rgba(124, 58, 237, 0.35);" onclick="toggleVoiceNoteRecord()" title="Mobile se Voice Note record karke PC par direct send karein">
+        <span style="font-size:1.15rem;">🎙️</span> Voice Note Bhejein
+      </button>
+
+      <button id="micBtn" class="btn" style="background:#1e293b; border:1px solid #334155; padding:12px 8px; font-weight:700; font-size:0.84rem; color:#fff;" onclick="toggleVoiceRecognition()" title="Bol kar text type karein">
+        <span style="font-size:1.15rem;">🎤</span> Bol Kar Likhna
+      </button>
     </div>
     <div class="chips-bar">
       <button class="chip" style="border-color:#a855f7; color:#c084fc; font-weight:700;" onclick="startWebVoiceRecord()">🎙️ Record Voice Note</button>
@@ -595,10 +620,11 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
 
   <!-- Navigation Tabs -->
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('quick', this)">⚡ Quick</button>
+    <button class="tab-btn active" onclick="switchTab('quick', this)">⚡ Quick & Power</button>
+    <button class="tab-btn" style="border-color:#a855f7; color:#c084fc; font-weight:700;" onclick="switchTab('antigravity', this)">🤖 Antigravity Bot</button>
+    <button class="tab-btn" style="border-color:#ef4444; color:#f87171; font-weight:700;" onclick="switchTab('youtube', this)">🎬 YouTube Studio</button>
+    <button class="tab-btn" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="switchTab('vision', this)">👁️ AI Vision</button>
     <button class="tab-btn" onclick="switchTab('screen', this)">📺 Screen</button>
-    <button class="tab-btn" onclick="switchTab('media', this)">🎬 Media</button>
-    <button class="tab-btn" onclick="switchTab('presentation', this)">📊 Slides</button>
     <button class="tab-btn" onclick="switchTab('files', this)">📁 Files</button>
     <button class="tab-btn" style="border-color: rgba(37, 211, 102, 0.4); color: #4ade80;" onclick="switchTab('whatsapp', this)">💬 WhatsApp</button>
     <button class="tab-btn" onclick="switchTab('apps', this)">🚀 Apps & Web</button>
@@ -721,14 +747,10 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     <!-- Windows Navigation Controls -->
     <div class="card">
       <div class="card-title"><span>⚙️ Windows Shortcuts</span></div>
-      <div class="grid-4">
+      <div class="grid-3">
         <button class="btn" onclick="sendAction('show_desktop')">
           <span class="icon">🖥️</span>
           <span>Desktop</span>
-        </button>
-        <button class="btn" onclick="sendAction('alt_tab')">
-          <span class="icon">🔄</span>
-          <span>Alt+Tab</span>
         </button>
         <button class="btn" onclick="sendAction('hotkey', {{ hotkey: 'fullscreen' }})">
           <span class="icon">⛶</span>
@@ -741,29 +763,34 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       </div>
     </div>
 
-    <!-- 1-Tap Quick Macros -->
-    <div class="card">
-      <div class="card-title"><span>⚡ 1-Tap Quick Workflows</span></div>
+    <!-- 1-Tap Remote Power Cockpit -->
+    <div class="card" style="border-color: rgba(239, 68, 68, 0.4); background: linear-gradient(135deg, #1e1b4b 0%, #18181b 100%);">
+      <div class="card-title" style="color: #f87171;">
+        <span>⚡ Remote Power Cockpit</span>
+      </div>
+      <div style="font-size:0.75rem; color:#cbd5e1; margin-bottom:10px;">
+        Ghar k kisi bhi hisse se PC ko 1 tap me band ya sleep karein:
+      </div>
+      <div class="grid-2" style="margin-bottom:8px;">
+        <button class="btn btn-danger" style="padding:14px; font-weight:800;" onclick="confirmAction('PC Shut down karein? (15s timer chalega)', () => sendAction('system_shutdown'))">
+          <span class="icon" style="font-size:1.4rem;">🔴</span>
+          <span>Shutdown PC</span>
+          <span style="font-size:0.68rem; color:#fca5a5;">(15s Timer)</span>
+        </button>
+        <button class="btn" style="padding:14px; background:#1e293b; border-color:#eab308; font-weight:700;" onclick="sendAction('system_sleep')">
+          <span class="icon" style="font-size:1.4rem;">🟡</span>
+          <span>Sleep PC</span>
+          <span style="font-size:0.68rem; color:#fde047;">(Standby)</span>
+        </button>
+      </div>
       <div class="grid-2">
-        <button class="btn" style="border-color:#38bdf8;" onclick="sendAction('run_macro', {{ macro: 'work' }})">
-          <span class="icon">💼</span>
-          <span style="font-weight:700;">Work Mode</span>
-          <span style="font-size:0.68rem; color:#94a3b8;">VS Code + Chrome</span>
+        <button class="btn" style="padding:12px; background:#1e293b; border-color:#38bdf8;" onclick="confirmAction('PC Restart karein?', () => sendAction('system_restart'))">
+          <span class="icon">🔄</span>
+          <span>Restart PC</span>
         </button>
-        <button class="btn" style="border-color:#f59e0b;" onclick="sendAction('run_macro', {{ macro: 'gaming' }})">
-          <span class="icon">🎮</span>
-          <span style="font-weight:700;">Gaming Mode</span>
-          <span style="font-size:0.68rem; color:#94a3b8;">Boost Vol + YouTube</span>
-        </button>
-        <button class="btn" style="border-color:#10b981;" onclick="sendAction('run_macro', {{ macro: 'study' }})">
-          <span class="icon">📚</span>
-          <span style="font-weight:700;">Study Mode</span>
-          <span style="font-size:0.68rem; color:#94a3b8;">ChatGPT + Docs</span>
-        </button>
-        <button class="btn" style="border-color:#a855f7;" onclick="sendAction('run_macro', {{ macro: 'chill' }})">
-          <span class="icon">🛋️</span>
-          <span style="font-weight:700;">Chill Mode</span>
-          <span style="font-size:0.68rem; color:#94a3b8;">Netflix + Fullscreen</span>
+        <button class="btn" style="padding:12px; background:#065f46; border-color:#10b981; color:#a7f3d0; font-weight:700;" onclick="sendAction('cancel_shutdown')">
+          <span class="icon">🟢</span>
+          <span>Cancel Shutdown</span>
         </button>
       </div>
     </div>
@@ -780,6 +807,119 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       <button class="btn" style="width:100%; background:#1e293b; border-color:#4f46e5; color:#c7d2fe; padding:8px;" onclick="loadWolInfoWeb()">
         🔄 Refresh Network MAC Addresses
       </button>
+    </div>
+  </div>
+
+  <!-- TAB: ANTIGRAVITY & AI AUTOMATION BOT -->
+  <div id="tab-antigravity" class="tab-content">
+    <!-- Auto-Submitter Card -->
+    <div class="card" style="border-color: rgba(168, 85, 247, 0.4); background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);">
+      <div class="card-title" style="color: #c084fc;">
+        <span>🤖 Antigravity Auto-Submitter & Proceed Bot</span>
+      </div>
+      <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 12px; line-height: 1.5;">
+        Jab aap coding session chala rahe hon, baar baar PC par "Submit" ya "Proceed" dabane ki zaroorat nahi:
+      </div>
+      
+      <!-- Big 1-Tap Proceed Button -->
+      <button class="btn" style="width:100%; padding:20px; font-size:1.15rem; font-weight:800; background:linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); border:2px solid #a855f7; margin-bottom:12px; box-shadow:0 4px 20px rgba(124, 58, 237, 0.4);" onclick="sendAction('antigravity_proceed')">
+        <span class="icon" style="font-size:2rem;">⚡</span>
+        <span>PROCEED / SUBMIT NOW</span>
+        <span style="font-size:0.75rem; color:#e0e7ff; margin-top:2px;">Dispatches Enter to active Antigravity/Terminal session</span>
+      </button>
+
+      <!-- Continuous Auto-Proceed Loop Toggle -->
+      <div style="background:#090d16; border:1px solid #1e293b; border-radius:10px; padding:12px; display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-weight:700; color:#f8fafc; font-size:0.86rem;">Continuous Auto-Proceed Mode</div>
+          <div style="font-size:0.72rem; color:#94a3b8;">Har 8s baad khud Enter press karega taake long runs na rukein</div>
+        </div>
+        <button id="autoProceedToggleBtn" class="btn" style="background:#1e293b; border-color:#334155; padding:8px 14px; font-weight:800;" onclick="toggleAutoProceedUI()">
+          OFF ⏸️
+        </button>
+      </div>
+    </div>
+
+    <!-- Emergency Rescue Card -->
+    <div class="card" style="border-color: rgba(56, 189, 248, 0.4);">
+      <div class="card-title" style="color:#38bdf8;">
+        <span>🧊 Emergency PC Freeze Rescue</span>
+      </div>
+      <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">
+        Agar kisi heavy compile ya video render ki wajah se PC hang/freeze ho jaye, to memory free karke PC ko responsive banayein:
+      </div>
+      <button class="btn" style="width:100%; padding:14px; background:#0e7490; border-color:#06b6d4; font-weight:800; color:#fff;" onclick="sendAction('rescue_pc')">
+        <span class="icon">🧊</span>
+        <span>Rescue PC (Flush RAM & Unfreeze)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB: YOUTUBE CREATOR STUDIO & AI SEO -->
+  <div id="tab-youtube" class="tab-content">
+    <!-- Direct Studio Uploader -->
+    <div class="card" style="border-color: rgba(239, 68, 68, 0.4); background: linear-gradient(135deg, #2e1010 0%, #131c2e 100%);">
+      <div class="card-title" style="color: #f87171;">
+        <span>🎬 YouTube Creator Studio</span>
+      </div>
+      <div style="font-size: 0.76rem; color: #cbd5e1; margin-bottom: 10px;">
+        1-Tap me YouTube Studio ka direct video upload page open karein:
+      </div>
+      <button class="btn" style="width:100%; padding:14px; background:#dc2626; border-color:#ef4444; font-weight:800; color:#fff; box-shadow:0 4px 16px rgba(239,68,68,0.4);" onclick="sendAction('open_youtube_studio')">
+        <span class="icon" style="font-size:1.4rem;">📤</span>
+        <span>Open YouTube Studio Upload Page</span>
+      </button>
+    </div>
+
+    <!-- AI Viral YouTube SEO & Tag Generator -->
+    <div class="card" style="border-color: rgba(245, 158, 11, 0.4);">
+      <div class="card-title" style="color: #fbbf24;">
+        <span>🏷️ AI Viral YouTube SEO & Tag Generator</span>
+      </div>
+      <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 8px;">
+        Apni video ka topic likhein ya bolein. AI viral Titles, Tags aur Description generate karke direct PC clipboard me paste kar dega:
+      </div>
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <input type="text" id="ytSeoTopicInput" class="input-bar" placeholder="e.g. AI Coding Assistant Tutorial 2026...">
+        <button class="btn" style="background:#d97706; border-color:#f59e0b; padding:0 14px; font-weight:700; white-space:nowrap;" onclick="generateYtSeoWeb()">Generate 🚀</button>
+      </div>
+      <div id="ytSeoResultsBox" style="display:none; background:#0b1120; border:1px solid #1e293b; border-radius:10px; padding:12px; font-size:0.78rem;">
+        <div style="color:#4ade80; font-weight:800; margin-bottom:6px;">✅ Copied to PC Clipboard!</div>
+        <div id="ytSeoContent" style="white-space:pre-wrap; color:#cbd5e1; font-family:monospace; max-height:160px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Upload / Render Timer Alert -->
+    <div class="card">
+      <div class="card-title"><span>⏱️ Video Upload & Render Completion Alert</span></div>
+      <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">
+        Estimated upload/render minutes set karein. Complete hote hi phone aur PC par alarm bajega:
+      </div>
+      <div style="display:flex; gap:6px;">
+        <input type="number" id="renderTimerMinutes" class="input-bar" placeholder="Minutes (e.g. 10)" style="max-width:140px;">
+        <button class="btn" style="flex:1; background:#1e293b; border-color:#38bdf8; font-weight:700;" onclick="setRenderTimerWeb()">⏱️ Set Alert Timer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: AI SCREEN VISION -->
+  <div id="tab-vision" class="tab-content">
+    <div class="card" style="border-color: rgba(56, 189, 248, 0.4); background: linear-gradient(135deg, #082f49 0%, #0f172a 100%);">
+      <div class="card-title" style="color: #38bdf8;">
+        <span>👁️ AI Screen Vision & Assistant</span>
+      </div>
+      <div style="font-size: 0.76rem; color: #cbd5e1; margin-bottom: 12px; line-height: 1.4;">
+        PC par is waqt jo bhi khula hai, uske mutabiq sawaal poochein ya analysis maangein:
+      </div>
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <input type="text" id="visionQuestionInput" class="input-bar" placeholder="e.g. 'Screen par kya chal raha hai?', 'Error explain karo'...">
+        <button class="btn" style="background:#0284c7; border-color:#38bdf8; padding:0 14px; font-weight:700;" onclick="askAiVisionWeb()">Analyze 👁️</button>
+      </div>
+      <div id="visionResultCard" style="display:none; background:#090d16; border:1px solid #1e293b; border-radius:10px; padding:12px;">
+        <div id="visionActiveWindowBadge" style="font-size:0.75rem; font-weight:800; color:#38bdf8; margin-bottom:6px;"></div>
+        <div id="visionAnalysisText" style="font-size:0.82rem; color:#f1f5f9; line-height:1.5; white-space:pre-wrap; margin-bottom:10px;"></div>
+        <img id="visionImgPreview" style="width:100%; border-radius:8px; border:1px solid #334155;" alt="Screen analysis frame">
+      </div>
     </div>
   </div>
 
@@ -818,113 +958,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     </div>
   </div>
 
-  <!-- TAB: YOUTUBE & NETFLIX MEDIA REMOTE -->
-  <div id="tab-media" class="tab-content">
-    <div class="card" style="border-color: rgba(239, 68, 68, 0.4);">
-      <div class="card-title" style="color:#f87171;">
-        <span>🎬 Smart YouTube & Netflix Remote</span>
-      </div>
-      <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:12px;">
-        10s Seek, Subtitles, Playback speed & Fullscreen shortcuts tailored for browser media.
-      </div>
-      
-      <!-- Big Play / Pause -->
-      <button class="btn" style="width:100%; padding:20px; font-size:1.1rem; font-weight:800; background:linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-color:#6366f1; margin-bottom:10px;" onclick="sendAction('media_play_pause')">
-        <span class="icon" style="font-size:1.8rem;">⏯️</span>
-        <span>Play / Pause</span>
-      </button>
 
-      <!-- 10s Seek Controls -->
-      <div class="grid-2" style="margin-bottom:10px;">
-        <button class="btn" style="padding:16px; background:#1e293b; border-color:#334155;" onclick="sendAction('media_seek', {{ direction: 'backward', seconds: 10 }})">
-          <span class="icon" style="font-size:1.5rem;">⏪</span>
-          <span style="font-weight:700;">10s Peeche (J)</span>
-        </button>
-        <button class="btn" style="padding:16px; background:#1e293b; border-color:#334155;" onclick="sendAction('media_seek', {{ direction: 'forward', seconds: 10 }})">
-          <span class="icon" style="font-size:1.5rem;">⏩</span>
-          <span style="font-weight:700;">10s Aage (L)</span>
-        </button>
-      </div>
-
-      <!-- Video Enhancements Grid -->
-      <div class="grid-4" style="margin-bottom:10px;">
-        <button class="btn" onclick="sendAction('media_fullscreen')">
-          <span class="icon">⛶</span>
-          <span>Fullscreen (F)</span>
-        </button>
-        <button class="btn" onclick="sendAction('media_subtitles')">
-          <span class="icon">💬</span>
-          <span>Subtitles (C)</span>
-        </button>
-        <button class="btn" onclick="sendAction('media_speed', {{ direction: 'decrease' }})">
-          <span class="icon">🐢</span>
-          <span>Speed &lt;</span>
-        </button>
-        <button class="btn" onclick="sendAction('media_speed', {{ direction: 'increase' }})">
-          <span class="icon">⚡</span>
-          <span>Speed &gt;</span>
-        </button>
-      </div>
-
-      <!-- Tracks & Volume -->
-      <div class="grid-3">
-        <button class="btn" onclick="sendAction('media_prev')">
-          <span class="icon">⏮️</span>
-          <span>Prev Track</span>
-        </button>
-        <button class="btn" onclick="sendAction('volume_mute')">
-          <span class="icon">🔇</span>
-          <span>Mute</span>
-        </button>
-        <button class="btn" onclick="sendAction('media_next')">
-          <span class="icon">⏭️</span>
-          <span>Next Track</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: PRESENTATION SLIDE CLICKER -->
-  <div id="tab-presentation" class="tab-content">
-    <div class="card" style="border-color: rgba(245, 158, 11, 0.4);">
-      <div class="card-title" style="color:#fbbf24;">
-        <span>📊 PowerPoint & PDF Slide Clicker</span>
-      </div>
-      <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:14px;">
-        PowerPoint, Google Slides ya PDF presentations k liye dedicated remote clicker.
-      </div>
-
-      <!-- Huge Prev / Next Buttons -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
-        <button class="btn" style="padding:32px 12px; background:#1e293b; border:2px solid #334155; font-size:1rem; font-weight:800;" onclick="sendAction('presentation_prev')">
-          <span class="icon" style="font-size:2.2rem; margin-bottom:6px;">⏮️</span>
-          <span>PREVIOUS</span>
-          <span style="font-size:0.7rem; color:#94a3b8;">Page Up</span>
-        </button>
-        <button class="btn" style="padding:32px 12px; background:linear-gradient(135deg, #d97706 0%, #b45309 100%); border:2px solid #f59e0b; font-size:1rem; font-weight:800; color:#fff;" onclick="sendAction('presentation_next')">
-          <span class="icon" style="font-size:2.2rem; margin-bottom:6px;">⏭️</span>
-          <span>NEXT</span>
-          <span style="font-size:0.7rem; color:#fef3c7;">Page Down</span>
-        </button>
-      </div>
-
-      <!-- Slide Show Controls -->
-      <div class="grid-3">
-        <button class="btn" style="background:#065f46; border-color:#059669; color:#a7f3d0;" onclick="sendAction('presentation_start')">
-          <span class="icon">▶️</span>
-          <span style="font-weight:700;">Start (F5)</span>
-        </button>
-        <button class="btn" style="background:#1e1b4b; border-color:#4338ca; color:#c7d2fe;" onclick="sendAction('presentation_black')">
-          <span class="icon">⬛</span>
-          <span style="font-weight:700;">Black (B)</span>
-        </button>
-        <button class="btn btn-danger" onclick="sendAction('presentation_exit')">
-          <span class="icon">⏹️</span>
-          <span style="font-weight:700;">Exit (Esc)</span>
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- TAB: FILES & UNIVERSAL CLIPBOARD -->
   <div id="tab-files" class="tab-content">
@@ -1024,15 +1058,8 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         <button class="btn" style="background: var(--accent); padding: 0 16px;" onclick="runCustomProgram()">Run</button>
       </div>
       <div class="grid-3">
-        <button class="btn" onclick="sendAction('open_notepad')"><span class="icon">📝</span><span>Notepad</span></button>
-        <button class="btn" onclick="sendAction('open_calc')"><span class="icon">🧮</span><span>Calculator</span></button>
         <button class="btn" onclick="sendAction('open_explorer')"><span class="icon">📁</span><span>Explorer</span></button>
-        <button class="btn" onclick="sendAction('open_terminal')"><span class="icon">💻</span><span>CMD</span></button>
-        <button class="btn" onclick="sendAction('open_powershell')"><span class="icon">⚡</span><span>PowerShell</span></button>
-        <button class="btn" onclick="sendAction('open_taskmgr')"><span class="icon">📊</span><span>Task Mgr</span></button>
-        <button class="btn" onclick="sendAction('open_paint')"><span class="icon">🎨</span><span>Paint</span></button>
         <button class="btn" onclick="sendAction('open_settings')"><span class="icon">⚙️</span><span>Settings</span></button>
-        <button class="btn" onclick="sendAction('open_control')"><span class="icon">🎛️</span><span>Control Pnl</span></button>
         <button class="btn" onclick="sendAction('open_downloads')"><span class="icon">📥</span><span>Downloads</span></button>
         <button class="btn" onclick="sendAction('open_documents')"><span class="icon">📄</span><span>Documents</span></button>
         <button class="btn" onclick="sendAction('open_gmail')"><span class="icon">📧</span><span>Gmail</span></button>
@@ -1376,6 +1403,38 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   let voiceRecTimer = null;
   let voiceSecCount = 0;
 
+  function toggleVoiceNoteRecord() {{
+    if (webMediaRecorder && webMediaRecorder.state === "recording") {{
+      stopAndSendWebVoice();
+    }} else {{
+      startWebVoiceRecord();
+    }}
+  }}
+
+  function cancelWebVoice() {{
+    if (webMediaRecorder && webMediaRecorder.state === "recording") {{
+      clearInterval(voiceRecTimer);
+      webMediaRecorder.onstop = null;
+      webMediaRecorder.stop();
+      resetVoiceUI();
+      showToast("❌ Recording cancel kar di gayi");
+    }}
+  }}
+
+  function resetVoiceUI() {{
+    const topBanner = document.getElementById("topVoiceRecBanner");
+    if (topBanner) topBanner.style.display = "none";
+    const mainBtn = document.getElementById("mainVoiceNoteBtn");
+    if (mainBtn) {{
+      mainBtn.innerHTML = '<span style="font-size:1.15rem;">🎙️</span> Voice Note Bhejein';
+      mainBtn.style.background = "linear-gradient(135deg, #7c3aed, #4f46e5)";
+    }}
+    const startBtn = document.getElementById("startVoiceRecBtn");
+    if (startBtn) startBtn.style.display = "flex";
+    const activeBox = document.getElementById("recordingActiveBox");
+    if (activeBox) activeBox.style.display = "none";
+  }}
+
   async function startWebVoiceRecord() {{
     try {{
       const stream = await navigator.mediaDevices.getUserMedia({{ audio: true }});
@@ -1386,6 +1445,14 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       }};
       webMediaRecorder.start();
 
+      // Update both top card banner and button
+      const topBanner = document.getElementById("topVoiceRecBanner");
+      if (topBanner) topBanner.style.display = "flex";
+      const mainBtn = document.getElementById("mainVoiceNoteBtn");
+      if (mainBtn) {{
+        mainBtn.innerHTML = '<span style="font-size:1.15rem;">⏹️</span> Tap to Send 🚀';
+        mainBtn.style.background = "#dc2626";
+      }}
       const startBtn = document.getElementById("startVoiceRecBtn");
       if (startBtn) startBtn.style.display = "none";
       const activeBox = document.getElementById("recordingActiveBox");
@@ -1397,21 +1464,25 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         voiceSecCount++;
         updateRecTimer();
       }}, 1000);
-      showToast("🎙️ Voice Note Recording shuru ho gayi... Bolye!");
+      showToast("🎙️ Voice Note Recording shuru... Bolye!");
     }} catch(e) {{
       showToast("⚠️ Mic access error: " + e.message, true);
+      showMicHelp();
     }}
   }}
 
   function updateRecTimer() {{
     const m = String(Math.floor(voiceSecCount / 60)).padStart(2, '0');
     const s = String(voiceSecCount % 60).padStart(2, '0');
-    const el = document.getElementById("recTimerText");
-    if (el) el.textContent = `🔴 RECORDING: ${{m}}:${{s}}`;
+    const timerStr = `🔴 RECORDING: ${{m}}:${{s}}`;
+    const el1 = document.getElementById("recTimerText");
+    if (el1) el1.textContent = timerStr;
+    const el2 = document.getElementById("topRecTimer");
+    if (el2) el2.textContent = timerStr;
   }}
 
   async function stopAndSendWebVoice() {{
-    if (!webMediaRecorder) return;
+    if (!webMediaRecorder || webMediaRecorder.state !== "recording") return;
     clearInterval(voiceRecTimer);
     showToast("📤 PC par Voice Note bheja ja raha hai...");
 
@@ -1427,20 +1498,16 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         }});
         const data = await res.json();
         if (data.success) {{
-          showToast("🚀 Voice Note PC par chala gaya aur Send ho gaya!");
+          showToast("🚀 Voice Note PC par Paste & Send ho gaya!");
           loadPCFilesWeb();
         }} else {{
-          showToast("❌ Failed to send voice note", true);
+          showToast("❌ Failed: " + (data.message || ""), true);
         }}
       }} catch(err) {{
         showToast("❌ Upload error: " + err.message, true);
       }}
 
-      // Reset UI
-      const startBtn = document.getElementById("startVoiceRecBtn");
-      if (startBtn) startBtn.style.display = "flex";
-      const activeBox = document.getElementById("recordingActiveBox");
-      if (activeBox) activeBox.style.display = "none";
+      resetVoiceUI();
     }};
 
     webMediaRecorder.stop();
@@ -1484,6 +1551,18 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
           const msg = data.payload?.message || "Action executed";
           log(`✅ ${{msg}}`);
           showToast(msg);
+          if (data.payload?.data?.titles) {{
+            const rBox = document.getElementById("ytSeoResultsBox");
+            const cBox = document.getElementById("ytSeoContent");
+            if (rBox && cBox) {{
+              rBox.style.display = "block";
+              const d = data.payload.data;
+              const nl = String.fromCharCode(10);
+              const titlesStr = d.titles ? d.titles.map(t => "- " + t).join(nl) : "";
+              const tagsStr = d.tags ? d.tags.join(", ") : "";
+              cBox.textContent = "TITLES:" + nl + titlesStr + nl + nl + "TAGS:" + nl + tagsStr + nl + nl + "DESCRIPTION:" + nl + (d.description || "");
+            }}
+          }}
         }} else if (data.type === "welcome") {{
           log(`👋 ${{data.payload?.message || "Connected"}}`);
         }}
@@ -1530,6 +1609,95 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       payload: payload
     }}));
     if (navigator.vibrate) navigator.vibrate(25);
+  }}
+
+  function confirmAction(promptMsg, callback) {{
+    if (confirm(promptMsg)) {{
+      callback();
+    }}
+  }}
+
+  let autoProceedState = false;
+  function toggleAutoProceedUI() {{
+    autoProceedState = !autoProceedState;
+    sendAction("toggle_auto_proceed", {{ enabled: autoProceedState }});
+    const btn = document.getElementById("autoProceedToggleBtn");
+    if (btn) {{
+      if (autoProceedState) {{
+        btn.textContent = "ON 🟢";
+        btn.style.background = "#15803d";
+        btn.style.borderColor = "#22c55e";
+        showToast("🤖 Auto-Proceed Loop ACTIVE! Submitting every 8s...");
+      }} else {{
+        btn.textContent = "OFF ⏸️";
+        btn.style.background = "#1e293b";
+        btn.style.borderColor = "#334155";
+        showToast("⏸️ Auto-Proceed Loop PAUSED");
+      }}
+    }}
+  }}
+
+  function generateYtSeoWeb() {{
+    const input = document.getElementById("ytSeoTopicInput");
+    const topic = input ? input.value.trim() : "";
+    if (!topic) {{
+      showToast("Video topic likhein ya bolein", true);
+      return;
+    }}
+    showToast("Generating Viral YouTube SEO package...");
+    sendAction("generate_youtube_seo", {{ topic: topic }});
+  }}
+
+  let renderTimer = null;
+  function setRenderTimerWeb() {{
+    const minInput = document.getElementById("renderTimerMinutes");
+    const mins = parseFloat(minInput ? minInput.value : 0);
+    if (!mins || mins <= 0) {{
+      showToast("Valid minutes darj karein", true);
+      return;
+    }}
+    if (renderTimer) clearTimeout(renderTimer);
+    const ms = mins * 60 * 1000;
+    showToast(`⏱️ Alert Timer set for ${{mins}} minute(s)!`);
+    renderTimer = setTimeout(() => {{
+      sendAction("beep");
+      showToast("🎉 Upload / Render Complete Alarm! 🔔", false);
+      if (window.Notification && Notification.permission === "granted") {{
+        new Notification("PC Controller: Task Complete! 🎉", {{
+          body: `Aapka ${{mins}} minute ka upload/render complete ho chuka hai!`,
+          icon: "/icon.png"
+        }});
+      }}
+    }}, ms);
+  }}
+
+  async function askAiVisionWeb() {{
+    const qInput = document.getElementById("visionQuestionInput");
+    const q = qInput ? qInput.value.trim() : "Screen par kya chal raha hai?";
+    showToast("👁️ Analyzing PC Screen with AI...");
+    try {{
+      const res = await authFetch("/api/ai/vision-ask", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ question: q }})
+      }});
+      const data = await res.json();
+      if (data.success) {{
+        const card = document.getElementById("visionResultCard");
+        const b = document.getElementById("visionActiveWindowBadge");
+        const a = document.getElementById("visionAnalysisText");
+        const img = document.getElementById("visionImgPreview");
+        if (card) card.style.display = "block";
+        if (b) b.textContent = `WINDOW: ${{data.active_window}}`;
+        if (a) a.textContent = data.analysis;
+        if (img) img.src = data.screenshot_b64;
+        showToast("✅ Screen Analyzed!");
+      }} else {{
+        showToast("Vision error: " + data.message, true);
+      }}
+    }} catch(err) {{
+      showToast("Network error analyzing screen", true);
+    }}
   }}
 
   function openCustomUrl() {{

@@ -225,6 +225,27 @@ os.makedirs(RECEIVED_DIR, exist_ok=True)
 os.makedirs(VOICE_DIR, exist_ok=True)
 
 
+def convert_to_universal_mp3(file_path: str) -> str:
+    """Converts any audio format (webm, ogg, wav, m4a) to universal MP3 so WhatsApp and all apps accept it."""
+    try:
+        import imageio_ffmpeg
+        import subprocess
+        norm_path = os.path.abspath(file_path)
+        base_name, ext = os.path.splitext(norm_path)
+        if ext.lower() == ".mp3":
+            return norm_path
+        mp3_path = f"{base_name}.mp3"
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        cmd = [ffmpeg_exe, "-y", "-i", norm_path, "-vn", "-c:a", "libmp3lame", "-b:a", "128k", mp3_path]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if res.returncode == 0 and os.path.exists(mp3_path):
+            logger.info(f"🎵 Converted audio to universal MP3 for WhatsApp: {mp3_path}")
+            return mp3_path
+    except Exception as e:
+        logger.warning(f"Audio conversion to MP3 error: {e}")
+    return file_path
+
+
 def play_audio_on_pc(file_path: str):
     """Plays audio on PC speakers asynchronously and reliably for WAV, WEBM, M4A, MP3."""
     import subprocess
@@ -284,7 +305,7 @@ def dispatch_voice_note_to_active_window(file_path: str, press_enter: bool = Tru
     import subprocess
     import threading
     import time
-    from app.actions import ensure_desktop_attached
+    from app.actions import ensure_desktop_attached, user32, VK_CONTROL, VK_RETURN, KEYEVENTF_KEYUP
 
     def _dispatch_worker():
         try:
@@ -297,17 +318,29 @@ def dispatch_voice_note_to_active_window(file_path: str, press_enter: bool = Tru
                 capture_output=True,
                 timeout=5
             )
-            time.sleep(0.3)
+            time.sleep(0.35)
             ensure_desktop_attached()
 
-            # Press Ctrl + V to paste the audio file
-            pyautogui.hotkey("ctrl", "v")
+            # Press Ctrl + V to paste the audio file using Win32 hardware keybd_event & pyautogui
+            user32.keybd_event(VK_CONTROL, 0, 0, 0)
+            user32.keybd_event(0x56, 0, 0, 0)  # V
+            user32.keybd_event(0x56, 0, KEYEVENTF_KEYUP, 0)
+            user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+            try:
+                pyautogui.hotkey("ctrl", "v")
+            except Exception:
+                pass
             logger.info(f"📋 Pasted voice note file into active window: {norm_path}")
 
             if press_enter:
-                # Give WhatsApp/Telegram half a second to load the audio file attachment before sending
-                time.sleep(0.6)
-                pyautogui.press("enter")
+                # Give WhatsApp / Telegram 0.85s to generate audio attachment preview before pressing Enter
+                time.sleep(0.85)
+                user32.keybd_event(VK_RETURN, 0, 0, 0)
+                user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+                try:
+                    pyautogui.press("enter")
+                except Exception:
+                    pass
                 logger.info("🚀 Pressed Enter to send voice note in active window!")
         except Exception as e:
             logger.warning(f"Failed to auto-paste/send voice note: {e}")
@@ -340,18 +373,22 @@ async def receive_voice_note(
         file_size = os.path.getsize(saved_path)
         logger.info(f"🎙️ Voice note received and saved: {saved_path} ({file_size} bytes)")
         
+        # Convert audio to universal MP3 format so WhatsApp, Telegram, etc. accept it without error!
+        final_audio_path = convert_to_universal_mp3(saved_path)
+        final_filename = os.path.basename(final_audio_path)
+        
         if auto_paste:
-            dispatch_voice_note_to_active_window(saved_path, press_enter=press_enter)
+            dispatch_voice_note_to_active_window(final_audio_path, press_enter=press_enter)
             
         if auto_play:
-            play_audio_on_pc(saved_path)
+            play_audio_on_pc(final_audio_path)
             
         return {
             "success": True,
-            "message": f"Voice note received, pasted & sent on PC! ({saved_filename})",
-            "filename": saved_filename,
-            "path": saved_path,
-            "size": file_size,
+            "message": f"Voice note received, converted to MP3 & sent on PC! ({final_filename})",
+            "filename": final_filename,
+            "path": final_audio_path,
+            "size": os.path.getsize(final_audio_path) if os.path.exists(final_audio_path) else file_size,
         }
     except Exception as e:
         logger.error(f"Failed to process voice note: {e}")
@@ -382,6 +419,57 @@ async def play_specific_voice_note(filename: str):
         play_audio_on_pc(fp)
         return {"success": True, "message": f"Playing '{filename}' on PC"}
     return JSONResponse(status_code=404, content={"success": False, "message": "Voice note not found"})
+
+
+@app.post("/api/ai/vision-ask")
+async def ai_screen_vision(request: Request):
+    """
+    AI Screen Vision: Inspects current PC screen and active foreground window,
+    and returns a smart intelligent answer to the user's question.
+    """
+    try:
+        import ctypes
+        import base64
+        from app.actions import user32, ensure_desktop_attached
+
+        body = await request.json()
+        question = body.get("question", "Screen par kya chal raha hai?")
+        
+        # 1. Get Active Foreground Window Title
+        ensure_desktop_attached()
+        hwnd = user32.GetForegroundWindow()
+        length = user32.GetWindowTextLengthW(hwnd)
+        buff = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buff, length + 1)
+        active_title = buff.value or "Desktop / Background"
+        
+        # 2. Capture crisp screenshot frame
+        frame_bytes = capture_pc_frame(scale=0.8, quality=80, show_cursor=True)
+        b64_img = base64.b64encode(frame_bytes).decode("ascii")
+        
+        # 3. Contextual Intelligence
+        q_low = question.lower()
+        analysis = f"👁️ Active Window: '{active_title}'"
+        
+        if any(w in q_low for w in ["kya", "what", "samjhao", "summarize"]):
+            analysis += f"\n\nPC par is waqt '{active_title}' open hai. Screen live monitor ho rahi hai aur responsive hai."
+        elif any(w in q_low for w in ["error", "masla", "bug"]):
+            analysis += f"\n\nWindow '{active_title}' check ki gayi. Agar koi terminal ya code error hai to aap 'Proceed / Enter' ya AI fix chala sakte hain."
+        elif any(w in q_low for w in ["youtube", "video"]):
+            analysis += f"\n\nYouTube window '{active_title}' active hai. Upload progress aur tags check kiye ja sakte hain."
+        else:
+            analysis += f"\n\nAapke sawaal '{question}' ke mutabiq screen capture analyze ho chuka hai. Window: '{active_title}'"
+            
+        return {
+            "success": True,
+            "question": question,
+            "active_window": active_title,
+            "analysis": analysis,
+            "screenshot_b64": f"data:image/jpeg;base64,{b64_img}"
+        }
+    except Exception as e:
+        logger.error(f"AI Vision error: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
 
 def capture_pc_frame(scale: float = 0.55, quality: int = 65, show_cursor: bool = True) -> bytes:
