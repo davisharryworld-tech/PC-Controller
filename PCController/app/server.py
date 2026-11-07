@@ -223,40 +223,53 @@ RECEIVED_DIR = os.path.join(os.path.expanduser("~"), "Downloads", "PC_Controller
 os.makedirs(RECEIVED_DIR, exist_ok=True)
 
 
+def capture_pc_frame(scale: float = 0.55, quality: int = 65, show_cursor: bool = True) -> bytes:
+    """Fast screen capture using ImageGrab with attached desktop and visible mouse cursor."""
+    from PIL import ImageGrab, ImageDraw
+    from app.actions import ensure_desktop_attached
+    ensure_desktop_attached()
+    img = ImageGrab.grab()
+    w, h = img.size
+    target_w, target_h = int(w * scale), int(h * scale)
+    img_small = img.resize((target_w, target_h))
+    if show_cursor:
+        try:
+            mx, my = pyautogui.position()
+            cx, cy = int(mx * scale), int(my * scale)
+            draw = ImageDraw.Draw(img_small)
+            # Draw highly visible cursor dot
+            draw.ellipse((cx - 6, cy - 6, cx + 6, cy + 6), fill="#ef4444", outline="#ffffff", width=2)
+        except Exception:
+            pass
+    buf = io.BytesIO()
+    img_small.save(buf, format="JPEG", quality=quality)
+    return buf.getvalue()
+
+
 @app.get("/api/screen/screenshot")
-async def get_screenshot():
-    """Captures and returns the current PC screen as a JPEG image."""
+async def get_screenshot(raw: bool = False):
+    """Captures and returns the current PC screen as an optimized JPEG image."""
     try:
-        from app.actions import ensure_desktop_attached
-        ensure_desktop_attached()
-        img = pyautogui.screenshot()
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=80)
-        buf.seek(0)
-        return StreamingResponse(buf, media_type="image/jpeg")
+        scale = 1.0 if raw else 0.65
+        quality = 85 if raw else 65
+        frame = capture_pc_frame(scale=scale, quality=quality, show_cursor=True)
+        return StreamingResponse(io.BytesIO(frame), media_type="image/jpeg")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.get("/api/screen/stream")
 async def get_screen_stream():
-    """Streams live PC screen as a smooth MJPEG video stream."""
+    """Streams live PC screen as a smooth MJPEG video stream with visible mouse cursor."""
     import asyncio
-    from app.actions import ensure_desktop_attached
 
     async def frame_generator():
         while True:
             try:
-                ensure_desktop_attached()
-                img = pyautogui.screenshot()
-                w, h = img.size
-                img_small = img.resize((w // 2, h // 2))
-                buf = io.BytesIO()
-                img_small.save(buf, format="JPEG", quality=55)
-                frame = buf.getvalue()
+                frame = capture_pc_frame(scale=0.55, quality=55, show_cursor=True)
                 yield (b"--frame\r\n"
                        b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
-                await asyncio.sleep(0.08)  # ~12 FPS
+                await asyncio.sleep(0.09)  # ~11 FPS
             except Exception:
                 await asyncio.sleep(0.2)
 
