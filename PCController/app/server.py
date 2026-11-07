@@ -226,34 +226,111 @@ os.makedirs(VOICE_DIR, exist_ok=True)
 
 
 def play_audio_on_pc(file_path: str):
-    """Plays audio on PC speakers asynchronously using Windows COM / Media Player."""
+    """Plays audio on PC speakers asynchronously and reliably for WAV, WEBM, M4A, MP3."""
     import subprocess
     import winsound
-    try:
-        winsound.MessageBeep(winsound.MB_ICONASTERISK)
-    except Exception:
-        pass
-    try:
-        safe_path = file_path.replace("'", "''")
-        cmd = f"""powershell -WindowStyle Hidden -Command "$p = New-Object -ComObject WMPlayer.OCX; $p.URL = '{safe_path}'; $p.controls.play(); Start-Sleep -Seconds 12" """
-        subprocess.Popen(cmd, shell=True)
-    except Exception as e:
-        logger.warning(f"Audio playback error: {e}")
+    import threading
+
+    def _worker():
+        try:
+            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+        except Exception:
+            pass
+
+        norm_path = os.path.abspath(file_path)
+        ext = os.path.splitext(norm_path)[1].lower()
+
+        # If WAV, winsound plays it instantly with native Windows audio subsystem
+        if ext == ".wav":
+            try:
+                winsound.PlaySound(norm_path, winsound.SND_FILENAME)
+                return
+            except Exception as e:
+                logger.warning(f"winsound error: {e}")
+
+        # For WEBM, M4A, MP3: PresentationCore MediaPlayer
+        try:
+            safe_uri = norm_path.replace("'", "''")
+            ps_script = f"Add-Type -AssemblyName presentationCore; $mp = New-Object System.Windows.Media.MediaPlayer; $mp.Open([System.Uri]'{safe_uri}'); $mp.Play(); Start-Sleep -Seconds 10"
+            subprocess.run(
+                ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_script],
+                timeout=12,
+                capture_output=True
+            )
+            return
+        except Exception as e:
+            logger.warning(f"MediaPlayer fallback error: {e}")
+
+        # Fallback: Edge audio runner
+        try:
+            file_url = f"file:///{norm_path.replace(os.sep, '/')}"
+            subprocess.Popen([
+                "msedge.exe",
+                "--new-window",
+                f"--app=data:text/html,<audio autoplay src='{file_url}'></audio><script>setTimeout(()=>window.close(),8000);</script>"
+            ])
+        except Exception as e:
+            logger.warning(f"Edge audio fallback error: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def dispatch_voice_note_to_active_window(file_path: str, press_enter: bool = True):
+    """
+    Copies the voice note file to the Windows Clipboard (CF_HDROP)
+    and simulates Ctrl+V paste and Enter to send it into WhatsApp, Telegram,
+    or whatever chat / window is active on the PC.
+    """
+    import subprocess
+    import threading
+    import time
+    from app.actions import ensure_desktop_attached
+
+    def _dispatch_worker():
+        try:
+            norm_path = os.path.abspath(file_path)
+            # Copy file to clipboard as true FileDropList
+            safe_path = norm_path.replace("'", "''")
+            ps_cmd = f"Set-Clipboard -Path '{safe_path}'"
+            subprocess.run(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                capture_output=True,
+                timeout=5
+            )
+            time.sleep(0.3)
+            ensure_desktop_attached()
+
+            # Press Ctrl + V to paste the audio file
+            pyautogui.hotkey("ctrl", "v")
+            logger.info(f"📋 Pasted voice note file into active window: {norm_path}")
+
+            if press_enter:
+                # Give WhatsApp/Telegram half a second to load the audio file attachment before sending
+                time.sleep(0.6)
+                pyautogui.press("enter")
+                logger.info("🚀 Pressed Enter to send voice note in active window!")
+        except Exception as e:
+            logger.warning(f"Failed to auto-paste/send voice note: {e}")
+
+    threading.Thread(target=_dispatch_worker, daemon=True).start()
 
 
 @app.post("/api/voice/send")
 async def receive_voice_note(
     file: UploadFile = File(...),
-    auto_play: bool = True
+    auto_play: bool = True,
+    auto_paste: bool = True,
+    press_enter: bool = True
 ):
     """
     Receives a recorded voice note from mobile, saves it to PC Voice_Notes,
+    pastes and sends it into the active window (e.g. WhatsApp, chat),
     and plays it on PC speakers.
     """
     try:
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        ext = os.path.splitext(file.filename)[1] or ".m4a"
+        ext = os.path.splitext(file.filename)[1] or ".wav"
         saved_filename = f"Voice_{timestamp}{ext}"
         saved_path = os.path.join(VOICE_DIR, saved_filename)
         
@@ -263,12 +340,15 @@ async def receive_voice_note(
         file_size = os.path.getsize(saved_path)
         logger.info(f"🎙️ Voice note received and saved: {saved_path} ({file_size} bytes)")
         
+        if auto_paste:
+            dispatch_voice_note_to_active_window(saved_path, press_enter=press_enter)
+            
         if auto_play:
             play_audio_on_pc(saved_path)
             
         return {
             "success": True,
-            "message": f"Voice note received & playing on PC! ({saved_filename})",
+            "message": f"Voice note received, pasted & sent on PC! ({saved_filename})",
             "filename": saved_filename,
             "path": saved_path,
             "size": file_size,

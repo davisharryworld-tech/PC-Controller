@@ -399,7 +399,7 @@ def mouse_scroll(amount: int) -> str:
     return f"Scrolled {'Up' if amount > 0 else 'Down'}"
 
 
-def type_text(text: str) -> str:
+def type_text(text: str, press_enter: bool = False) -> str:
     """Pastes text directly into the active window (supports Urdu, emojis, etc.)."""
     if not text:
         return "Empty text"
@@ -412,8 +412,13 @@ def type_text(text: str) -> str:
     user32.keybd_event(0x56, 0, KEYEVENTF_KEYUP, 0)
     user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
 
+    if press_enter:
+        time.sleep(0.15)
+        user32.keybd_event(VK_RETURN, 0, 0, 0)
+        user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+
     play_feedback_sound()
-    return f"Typed: '{text[:25]}...'" if len(text) > 25 else f"Typed: '{text}'"
+    return f"Typed & Sent: '{text[:25]}...'" if press_enter else (f"Typed: '{text[:25]}...'" if len(text) > 25 else f"Typed: '{text}'")
 
 
 def type_live(text: str) -> str:
@@ -1004,9 +1009,10 @@ def execute_universal_action(action_type: str, payload: dict[str, Any] = None) -
             txt = payload.get("text", "")
             msg = type_live(txt)
             return {"success": True, "message": msg, "action": act, "silent": True}
-        elif act == "type_text":
+        elif act in ["type_text", "dictate_send"]:
             txt = payload.get("text", "")
-            msg = type_text(txt)
+            press_enter = bool(payload.get("press_enter", False) or payload.get("auto_send", False) or act == "dictate_send")
+            msg = type_text(txt, press_enter=press_enter)
         elif act == "type_in_notepad":
             txt = payload.get("text", "")
             msg = type_in_notepad(txt)

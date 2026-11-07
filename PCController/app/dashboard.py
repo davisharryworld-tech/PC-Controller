@@ -1377,7 +1377,6 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   let voiceSecCount = 0;
 
   async function startWebVoiceRecord() {{
-    switchTab('files');
     try {{
       const stream = await navigator.mediaDevices.getUserMedia({{ audio: true }});
       voiceAudioChunks = [];
@@ -1387,7 +1386,8 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       }};
       webMediaRecorder.start();
 
-      document.getElementById("startVoiceRecBtn").style.display = "none";
+      const startBtn = document.getElementById("startVoiceRecBtn");
+      if (startBtn) startBtn.style.display = "none";
       const activeBox = document.getElementById("recordingActiveBox");
       if (activeBox) activeBox.style.display = "flex";
 
@@ -1397,7 +1397,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         voiceSecCount++;
         updateRecTimer();
       }}, 1000);
-      showToast("🎙️ Recording Voice... Bolye!");
+      showToast("🎙️ Voice Note Recording shuru ho gayi... Bolye!");
     }} catch(e) {{
       showToast("⚠️ Mic access error: " + e.message, true);
     }}
@@ -1407,13 +1407,13 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const m = String(Math.floor(voiceSecCount / 60)).padStart(2, '0');
     const s = String(voiceSecCount % 60).padStart(2, '0');
     const el = document.getElementById("recTimerText");
-    if (el) el.textContent = `RECORDING: ${{m}}:${{s}}`;
+    if (el) el.textContent = `🔴 RECORDING: ${{m}}:${{s}}`;
   }}
 
   async function stopAndSendWebVoice() {{
     if (!webMediaRecorder) return;
     clearInterval(voiceRecTimer);
-    showToast("📤 Sending Voice Note to PC...");
+    showToast("📤 PC par Voice Note bheja ja raha hai...");
 
     webMediaRecorder.onstop = async () => {{
       const audioBlob = new Blob(voiceAudioChunks, {{ type: "audio/webm" }});
@@ -1421,23 +1421,24 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       formData.append("file", audioBlob, `Voice_${{Date.now()}}.webm`);
 
       try {{
-        const res = await authFetch("/api/voice/send?auto_play=true", {{
+        const res = await authFetch("/api/voice/send?auto_play=true&auto_paste=true&press_enter=true", {{
           method: "POST",
           body: formData
         }});
         const data = await res.json();
         if (data.success) {{
-          showToast("🎙️ Voice note PC par send aur play ho gaya!");
+          showToast("🚀 Voice Note PC par chala gaya aur Send ho gaya!");
           loadPCFilesWeb();
         }} else {{
           showToast("❌ Failed to send voice note", true);
         }}
       }} catch(err) {{
-        showToast("❌ Upload error", true);
+        showToast("❌ Upload error: " + err.message, true);
       }}
 
       // Reset UI
-      document.getElementById("startVoiceRecBtn").style.display = "flex";
+      const startBtn = document.getElementById("startVoiceRecBtn");
+      if (startBtn) startBtn.style.display = "flex";
       const activeBox = document.getElementById("recordingActiveBox");
       if (activeBox) activeBox.style.display = "none";
     }};

@@ -409,12 +409,12 @@ def interpret_and_execute_nl(query: str) -> dict:
         return {"success": True, "message": msg, "speak": "Computer lock ho chuka hai", "action": "lock_screen"}
 
     # -------------------------------------------------------------
-    # 12. Fallback: Type text onto active screen
+    # 12. Fallback: Type text onto active screen and Send (Enter)
     # -------------------------------------------------------------
-    msg = type_text(raw)
+    msg = type_text(raw, press_enter=True)
     return {
         "success": True,
-        "message": f"Typed on PC: '{raw}'",
-        "speak": "PC par type kar diya gaya hai",
+        "message": f"Typed & Sent on PC: '{raw}'",
+        "speak": "PC par type aur send kar diya gaya hai",
         "action": "type_text"
     }
