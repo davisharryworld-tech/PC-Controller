@@ -1,4 +1,115 @@
-def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip: str = None) -> str:
+def get_device_locked_html(client_ip: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⛔ Access Denied - Device Locked</title>
+  <style>
+    body {{
+      background: #090d16;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }}
+    .card {{
+      background: #131c2e;
+      border: 1px solid #ef4444;
+      border-radius: 16px;
+      max-width: 440px;
+      width: 100%;
+      padding: 28px 24px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2);
+    }}
+    .icon {{
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+    }}
+    h1 {{
+      font-size: 1.35rem;
+      color: #ef4444;
+      margin-bottom: 8px;
+    }}
+    p {{
+      font-size: 0.88rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }}
+    .badge {{
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      display: inline-block;
+      margin-bottom: 20px;
+    }}
+    .input-box {{
+      width: 100%;
+      padding: 12px;
+      background: #0b1120;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+      text-align: center;
+    }}
+    .btn {{
+      width: 100%;
+      padding: 12px;
+      background: #4f46e5;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⛔</div>
+    <h1>Access Denied: Device Locked</h1>
+    <div class="badge">Unrecognized Client IP: {client_ip}</div>
+    <p>
+      Ye PC Controller sirf aur sirf <b>Honor X6c</b> mobile ke liye exclusive lock hai. Kisi aur device ko access ki ijazat nahi hai.
+    </p>
+    <div style="text-align:left; font-size:0.75rem; color:#64748b; margin-bottom:6px;">
+      Device Pairing Key (Sirf Owner k liye):
+    </div>
+    <input type="password" id="devKey" class="input-box" placeholder="Enter Secret Device Key..." />
+    <button class="btn" onclick="unlockDevice()">Authorize Device</button>
+  </div>
+  <script>
+    function unlockDevice() {{
+      const key = document.getElementById("devKey").value.trim();
+      if (!key) return alert("Secret Key enter karein!");
+      localStorage.setItem("device_token", key);
+      document.cookie = "device_token=" + key + "; path=/; max-age=31536000";
+      location.href = "/?token=" + encodeURIComponent(key);
+    }}
+    const saved = localStorage.getItem("device_token");
+    if (saved && !location.search.includes("token=")) {{
+      location.href = "/?token=" + encodeURIComponent(saved);
+    }}
+  </script>
+</body>
+</html>"""
+
+
+def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip: str = None, authorized_token: str = "") -> str:
     ts_info = f'<div style="font-size:0.75rem; color:#818cf8; margin-top:2px;">🔒 Tailscale Remote: {tailscale_ip}</div>' if tailscale_ip else '<div style="font-size:0.72rem; color:#64748b; margin-top:2px;">Tailscale: not active</div>'
     server_http_origin = f"http://{tailscale_ip or local_ip}:{port}"
     return f"""<!DOCTYPE html>
@@ -1071,6 +1182,22 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     if (tabId !== "screen" && screenStreaming) toggleScreenStreamWeb();
   }}
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const qToken = urlParams.get("token");
+  if (qToken) {{
+    localStorage.setItem("device_token", qToken);
+    document.cookie = "device_token=" + qToken + "; path=/; max-age=31536000";
+  }}
+  const currentDeviceToken = localStorage.getItem("device_token") || "{authorized_token}";
+
+  function authFetch(url, options = {{}}) {{
+    options.headers = options.headers || {{}};
+    if (currentDeviceToken) {{
+      options.headers["X-Device-Token"] = currentDeviceToken;
+    }}
+    return fetch(url, options);
+  }}
+
   // Screen Stream & Screenshot
   let screenStreaming = false;
   function toggleScreenStreamWeb() {{
@@ -1079,7 +1206,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const btn = document.getElementById("streamToggleBtn");
     screenStreaming = !screenStreaming;
     if (screenStreaming) {{
-      img.src = "/api/screen/stream?t=" + Date.now();
+      img.src = "/api/screen/stream?token=" + encodeURIComponent(currentDeviceToken) + "&t=" + Date.now();
       img.style.display = "block";
       if (placeholder) placeholder.style.display = "none";
       btn.textContent = "⏹️ Stop Stream";
@@ -1100,7 +1227,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const placeholder = document.getElementById("screenshotPlaceholder");
     const dlBtn = document.getElementById("downloadScreenshotBtn");
     showToast("📸 Capturing PC Screenshot...");
-    const url = "/api/screen/screenshot?t=" + Date.now();
+    const url = "/api/screen/screenshot?token=" + encodeURIComponent(currentDeviceToken) + "&t=" + Date.now();
     img.onload = () => {{
       img.style.display = "block";
       if (placeholder) placeholder.style.display = "none";
@@ -1125,7 +1252,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     formData.append("file", file);
     showToast("📤 Uploading: " + file.name + "...");
     try {{
-      const res = await fetch("/api/files/upload", {{
+      const res = await authFetch("/api/files/upload", {{
         method: "POST",
         body: formData
       }});
@@ -1147,7 +1274,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     if (!list) return;
     list.innerHTML = '<div style="color:#64748b; font-size:0.8rem; text-align:center; padding:6px;">Loading files...</div>';
     try {{
-      const res = await fetch("/api/files/list");
+      const res = await authFetch("/api/files/list");
       const data = await res.json();
       const files = data.files || [];
       if (files.length === 0) {{
@@ -1159,7 +1286,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         const item = document.createElement("div");
         item.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#0b1120; border:1px solid #1e293b; padding:8px 12px; border-radius:8px; font-size:0.8rem;";
         const kb = (f.size / 1024).toFixed(1);
-        item.innerHTML = `<div><div style="font-weight:700; color:#f8fafc;">${{f.name}}</div><div style="font-size:0.7rem; color:#94a3b8;">${{kb}} KB</div></div><a href="/api/files/download/${{encodeURIComponent(f.name)}}" target="_blank" style="color:#38bdf8; text-decoration:none; font-weight:700; font-size:0.75rem;">⬇️ Download</a>`;
+        item.innerHTML = `<div><div style="font-weight:700; color:#f8fafc;">${{f.name}}</div><div style="font-size:0.7rem; color:#94a3b8;">${{kb}} KB</div></div><a href="/api/files/download/${{encodeURIComponent(f.name)}}?token=${{encodeURIComponent(currentDeviceToken)}}" target="_blank" style="color:#38bdf8; text-decoration:none; font-weight:700; font-size:0.75rem;">⬇️ Download</a>`;
         list.appendChild(item);
       }});
     }} catch(e) {{
@@ -1171,7 +1298,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   async function fetchClipboardWeb() {{
     showToast("📥 Fetching PC Clipboard...");
     try {{
-      const res = await fetch("/api/clipboard");
+      const res = await authFetch("/api/clipboard");
       const data = await res.json();
       const text = data.text || "";
       document.getElementById("webClipboardText").value = text;
@@ -1188,7 +1315,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       return;
     }}
     try {{
-      const res = await fetch("/api/clipboard", {{
+      const res = await authFetch("/api/clipboard", {{
         method: "POST",
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify({{ text: text }})
@@ -1208,7 +1335,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const box = document.getElementById("wolInfoBox");
     if (!box) return;
     try {{
-      const res = await fetch("/api/system/wol-info");
+      const res = await authFetch("/api/system/wol-info");
       const data = await res.json();
       let macs = (data.mac_addresses || []).map(m => `${{m.interface}}: ${{m.mac}}`).join("<br>");
       box.innerHTML = `<b>Host:</b> ${{data.host}}<br><b>Local IP:</b> ${{data.local_ip}}<br><b>MAC:</b><br>${{macs || "None found"}}`;
@@ -1219,7 +1346,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
 
   function connectWebSocket() {{
     const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${{wsProto}}//${{location.host}}/ws/controller`;
+    const wsUrl = `${{wsProto}}//${{location.host}}/ws/controller?token=${{encodeURIComponent(currentDeviceToken)}}`;
 
     ws = new WebSocket(wsUrl);
 
@@ -1241,7 +1368,10 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       ws.send(JSON.stringify({{
         type: "handshake",
         device_id: "mobile_web_controller",
-        payload: {{ device_name: navigator.userAgent.includes("Android") ? "Android Phone" : "Browser" }}
+        payload: {{
+          device_name: "Honor X6c",
+          device_token: currentDeviceToken
+        }}
       }}));
     }};
 

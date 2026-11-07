@@ -5,7 +5,7 @@ import platform
 import shutil
 import socket
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 import pyautogui
@@ -15,7 +15,7 @@ import psutil
 from app.actions import execute_universal_action
 from app.ai_parser import interpret_and_execute_nl
 from app.config import settings
-from app.dashboard import get_dashboard_html
+from app.dashboard import get_dashboard_html, get_device_locked_html
 from app.logger import logger
 from app.schemas import HealthStatus, SystemInfoResponse, WSMessageIn, WSMessageOut
 from app.ws_manager import ws_manager
@@ -85,6 +85,49 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def device_access_guard(request: Request, call_next):
+    client_ip = request.client.host if request.client else ""
+
+    # 1. Local PC access is always allowed
+    if client_ip in ("127.0.0.1", "::1", "localhost"):
+        return await call_next(request)
+
+    # 2. Hardware Tailscale IP: ONLY user's Honor X6c is allowed
+    if client_ip.startswith("100."):
+        if client_ip in settings.AUTHORIZED_TAILSCALE_IPS:
+            return await call_next(request)
+        else:
+            logger.warning(f"⛔ Blocked unauthorized Tailscale device: {client_ip}")
+            return JSONResponse(
+                status_code=403,
+                content={"error": "Forbidden", "detail": "Access Denied: Tailscale device is not authorized."}
+            )
+
+    # 3. Wi-Fi / LAN Access: Check Device Key in headers, query param, or cookies
+    token = (
+        request.headers.get("X-Device-Token")
+        or request.query_params.get("token")
+        or request.cookies.get("device_token")
+    )
+    if token == settings.AUTHORIZED_DEVICE_TOKEN:
+        return await call_next(request)
+
+    # If opening root URL in browser without token, show Device Lock screen
+    if request.url.path == "/" and request.method == "GET":
+        logger.info(f"Serving device lock pairing screen to unrecognized client: {client_ip}")
+        return HTMLResponse(
+            status_code=403,
+            content=get_device_locked_html(client_ip)
+        )
+
+    logger.warning(f"⛔ Blocked unauthorized device on Wi-Fi: {client_ip} trying to access {request.url.path}")
+    return JSONResponse(
+        status_code=403,
+        content={"error": "Forbidden", "detail": "Access Denied: Only authorized Honor X6c device is allowed."}
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
     """
@@ -96,6 +139,7 @@ async def serve_dashboard():
             tailscale_ip=settings.TAILSCALE_IP,
             port=settings.PORT,
             project_name=settings.PROJECT_NAME,
+            authorized_token=settings.AUTHORIZED_DEVICE_TOKEN,
         )
     )
 
@@ -333,6 +377,45 @@ async def websocket_controller_endpoint(websocket: WebSocket):
     WebSocket endpoint for real-time bidirectional communication with mobile clients.
     Handles connection handshake, keep-alive ping/pong, and safe PC actions.
     """
+    client_host = websocket.client.host if websocket.client else "unknown"
+    token = websocket.query_params.get("token")
+
+    # Hardware & Token verification (Locks to User's Honor X6c)
+    is_authorized = False
+    if client_host in ("127.0.0.1", "::1", "localhost"):
+        is_authorized = True
+    elif client_host.startswith("100.") and client_host in settings.AUTHORIZED_TAILSCALE_IPS:
+        is_authorized = True
+    elif token == settings.AUTHORIZED_DEVICE_TOKEN:
+        is_authorized = True
+
+    if not is_authorized:
+        # Check initial handshake message with device_token or reject immediately
+        await websocket.accept()
+        try:
+            import asyncio
+            raw_text = await asyncio.wait_for(websocket.receive_text(), timeout=4.0)
+            data = json.loads(raw_text)
+            if data.get("type") == "handshake":
+                dev_token = data.get("payload", {}).get("device_token")
+                if dev_token == settings.AUTHORIZED_DEVICE_TOKEN:
+                    is_authorized = True
+        except Exception:
+            pass
+
+        if not is_authorized:
+            logger.warning(f"⛔ Rejecting unauthorized WebSocket connection from: {client_host}")
+            try:
+                await websocket.send_text(json.dumps({
+                    "type": "auth_error",
+                    "status": "forbidden",
+                    "payload": {"message": "Access Denied: Only authorized Honor X6c device is allowed."}
+                }))
+                await websocket.close(code=4003)
+            except Exception:
+                pass
+            return
+
     await ws_manager.connect(websocket)
     client_host = websocket.client.host if websocket.client else "unknown"
 

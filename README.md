@@ -90,3 +90,4 @@ python main.py
 - Transfer and install `PC_Controller.apk` onto your Android phone.
 - Ensure both Phone and PC are on the same Wi-Fi network or connected via Tailscale VPN.
 - Open the app, and it will automatically connect to your PC controller daemon.
+

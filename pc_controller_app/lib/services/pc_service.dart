@@ -19,11 +19,18 @@ class PCService {
   String _tailscaleIp = '100.70.0.109';
   bool _useTailscale = true;
 
+  // Exclusive Hardware Device Token (Locks access to Honor X6c)
+  static const String authorizedDeviceToken = 'HX6C-982341-EXCLUSIVE-HONOR-TOKEN';
+
+  Map<String, String> get authHeaders => {
+    'X-Device-Token': authorizedDeviceToken,
+  };
+
   String get activeHost => _useTailscale ? _tailscaleIp : _host;
   int get port => _port;
   bool get useTailscale => _useTailscale;
   String get httpBaseUrl => 'http://$activeHost:$_port';
-  String get wsUrl => 'ws://$activeHost:$_port/ws/controller';
+  String get wsUrl => 'ws://$activeHost:$_port/ws/controller?token=$authorizedDeviceToken';
 
   // Connection State
   final ValueNotifier<ConnectionStatus> statusNotifier =
@@ -171,8 +178,11 @@ class PCService {
   void sendHandshake() {
     _sendJson({
       'type': 'handshake',
-      'device_id': 'flutter_mobile_app',
-      'payload': {'device_name': 'Android Flutter Controller'}
+      'device_id': 'honor_x6c_exclusive',
+      'payload': {
+        'device_name': 'Honor X6c',
+        'device_token': authorizedDeviceToken,
+      }
     });
   }
 
@@ -279,12 +289,15 @@ class PCService {
 
   // --- NEW CAPABILITIES ---
 
-  String get screenStreamUrl => '$httpBaseUrl/api/screen/stream';
-  String get screenshotUrl => '$httpBaseUrl/api/screen/screenshot';
+  String get screenStreamUrl => '$httpBaseUrl/api/screen/stream?token=$authorizedDeviceToken';
+  String get screenshotUrl => '$httpBaseUrl/api/screen/screenshot?token=$authorizedDeviceToken';
 
   Future<String> fetchPCClipboard() async {
     try {
-      final res = await http.get(Uri.parse('$httpBaseUrl/api/clipboard'));
+      final res = await http.get(
+        Uri.parse('$httpBaseUrl/api/clipboard'),
+        headers: authHeaders,
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         return data['clipboard']?.toString() ?? '';
@@ -295,9 +308,11 @@ class PCService {
 
   Future<bool> sendPCClipboard(String text) async {
     try {
+      final headers = <String, String>{'Content-Type': 'application/json'};
+      headers.addAll(authHeaders);
       final res = await http.post(
         Uri.parse('$httpBaseUrl/api/clipboard'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode({'text': text}),
       );
       return res.statusCode == 200;
@@ -308,7 +323,10 @@ class PCService {
 
   Future<Map<String, dynamic>> fetchWolInfo() async {
     try {
-      final res = await http.get(Uri.parse('$httpBaseUrl/api/system/wol-info'));
+      final res = await http.get(
+        Uri.parse('$httpBaseUrl/api/system/wol-info'),
+        headers: authHeaders,
+      );
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as Map<String, dynamic>;
       }
@@ -341,6 +359,7 @@ class PCService {
   Future<bool> uploadFileToPC(String filePath, String fileName) async {
     try {
       final request = http.MultipartRequest('POST', Uri.parse('$httpBaseUrl/api/files/upload'));
+      request.headers.addAll(authHeaders);
       request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
       final response = await request.send();
       return response.statusCode == 200;
@@ -351,7 +370,10 @@ class PCService {
 
   Future<List<Map<String, dynamic>>> fetchFileList() async {
     try {
-      final res = await http.get(Uri.parse('$httpBaseUrl/api/files/list'));
+      final res = await http.get(
+        Uri.parse('$httpBaseUrl/api/files/list'),
+        headers: authHeaders,
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final files = data['files'] as List<dynamic>? ?? [];

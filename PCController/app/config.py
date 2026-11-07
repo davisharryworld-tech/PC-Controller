@@ -83,5 +83,10 @@ class Settings:
         "*",
     ]
 
+    # Exclusive Device Whitelisting (Locks access exclusively to User's Honor X6c)
+    AUTHORIZED_TAILSCALE_IPS: list[str] = ["100.81.196.79"]
+    AUTHORIZED_DEVICE_NAME: str = "honor-x6c"
+    AUTHORIZED_DEVICE_TOKEN: str = os.getenv("PC_AUTHORIZED_DEVICE_TOKEN", "HX6C-982341-EXCLUSIVE-HONOR-TOKEN")
+
 
 settings = Settings()
