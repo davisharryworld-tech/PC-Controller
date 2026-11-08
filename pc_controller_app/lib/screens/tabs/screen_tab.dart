@@ -13,6 +13,7 @@ class ScreenTab extends StatefulWidget {
 
 class _ScreenTabState extends State<ScreenTab> {
   final PCService _pc = PCService();
+  final TextEditingController _typeController = TextEditingController();
   bool _isLiveMirroring = false;
   Uint8List? _liveFrameBytes;
   Uint8List? _screenshotBytes;
@@ -23,6 +24,7 @@ class _ScreenTabState extends State<ScreenTab> {
 
   @override
   void dispose() {
+    _typeController.dispose();
     _streamTimer?.cancel();
     super.dispose();
   }
@@ -41,8 +43,8 @@ class _ScreenTabState extends State<ScreenTab> {
 
   void _startStreamLoop() {
     _streamTimer?.cancel();
-    // 110ms interval = ~9 FPS smooth low-latency PC screen preview
-    _streamTimer = Timer.periodic(const Duration(milliseconds: 110), (_) async {
+    // 45ms interval = ~22 FPS ultra-low-latency PC screen preview
+    _streamTimer = Timer.periodic(const Duration(milliseconds: 45), (_) async {
       if (!_isLiveMirroring || _isFetchingFrame) return;
       _isFetchingFrame = true;
       try {
@@ -158,11 +160,15 @@ class _ScreenTabState extends State<ScreenTab> {
                 clipBehavior: Clip.antiAlias,
                 child: _isLiveMirroring
                     ? (_liveFrameBytes != null
-                        ? InteractiveViewer(
-                            panEnabled: true,
-                            scaleEnabled: true,
-                            minScale: 1.0,
-                            maxScale: 3.5,
+                        ? GestureDetector(
+                            onPanUpdate: (details) {
+                              _pc.sendMouseMove(
+                                (details.delta.dx * 2.2).toInt(),
+                                (details.delta.dy * 2.2).toInt(),
+                              );
+                            },
+                            onTap: () => _pc.sendAction('mouse_click', {'button': 'left'}),
+                            onDoubleTap: () => _pc.sendAction('mouse_click', {'button': 'right'}),
                             child: Image.memory(
                               _liveFrameBytes!,
                               fit: BoxFit.contain,
@@ -192,63 +198,206 @@ class _ScreenTabState extends State<ScreenTab> {
                         ),
                       ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
 
-        // Instant Screenshot Card
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF131C2E),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF1E293B)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.camera_alt_rounded, color: Color(0xFF38BDF8), size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    '📸 Instant PC Screenshot',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'PC ka 1-Tap high-definition snapshot khinchein.',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-              ),
+              // Integrated Mouse Control Section directly on Live Screen
               const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF090D18),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF1E293B)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '🖱️ Screen Mouse Controller',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFC7D2FE)),
+                        ),
+                        Text(
+                          'Trackpad & Clicks',
+                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Touchpad Surface (High-speed 3.8x with zero lag)
+                    GestureDetector(
+                      onPanUpdate: (details) {
+                        _pc.sendMouseMove(
+                          (details.delta.dx * 3.8).toInt(),
+                          (details.delta.dy * 3.8).toInt(),
+                        );
+                      },
+                      onTap: () => _pc.sendAction('mouse_click', {'button': 'left'}),
+                      onDoubleTap: () => _pc.sendAction('mouse_click', {'button': 'right'}),
+                      child: Container(
+                        height: 90,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D1527),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0x804F46E5)),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('👆 Fast Gliding Touchpad', style: TextStyle(color: Color(0xFFA5B4FC), fontWeight: FontWeight.bold, fontSize: 12)),
+                              SizedBox(height: 2),
+                              Text('Drag to move mouse • 1-Tap: Left • 2-Tap: Right', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // PC Live Typing Box
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF090D18),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF1E293B)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '⌨️ Live Typing Box',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFC7D2FE)),
+                        ),
+                        Text(
+                          'Direct Cursor Typing',
+                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _typeController,
+                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Yahan type karein aur Type dabayein...',
+                              hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              filled: true,
+                              fillColor: const Color(0xFF0B1120),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1E293B))),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1E293B))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF6366F1))),
+                            ),
+                            onSubmitted: (txt) {
+                              if (txt.isNotEmpty) {
+                                _pc.sendAction('type_text', {'text': txt});
+                                _typeController.clear();
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            final txt = _typeController.text;
+                            if (txt.isNotEmpty) {
+                              _pc.sendAction('type_text', {'text': txt});
+                              _typeController.clear();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6366F1),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Type 🚀', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _pc.sendAction('press_key', {'key': 'enter'}),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFF334155)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            child: const Text('⏎ Enter', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _pc.sendAction('press_key', {'key': 'backspace'}),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFF334155)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            child: const Text('⌫ Backspace', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _pc.sendAction('press_key', {'key': 'space'}),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFF334155)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            child: const Text('␣ Space', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Small Compact Capture & Download Screenshot Button
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _captureScreenshot,
                   icon: _isLoading
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.camera_rounded, size: 18),
-                  label: Text(_isLoading ? 'Kheencha ja raha hai...' : '📸 Capture Screenshot Now'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0284C7),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.camera_rounded, size: 16),
+                  label: Text(_isLoading ? 'Capturing...' : '📸 Capture Screen & Direct Download'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey.shade300,
+                    side: const BorderSide(color: Color(0xFF334155)),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ),
               if (_screenshotBytes != null) ...[
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF38BDF8)),
-                  ),
-                  clipBehavior: Clip.antiAlias,
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
                   child: Image.memory(_screenshotBytes!, fit: BoxFit.contain),
                 ),
               ],

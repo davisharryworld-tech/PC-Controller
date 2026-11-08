@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import os
@@ -7,7 +8,7 @@ import socket
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse, Response
 import pyautogui
 import pyperclip
 import psutil
@@ -472,15 +473,15 @@ async def ai_screen_vision(request: Request):
         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
 
-def capture_pc_frame(scale: float = 0.55, quality: int = 65, show_cursor: bool = True) -> bytes:
-    """Fast screen capture using ImageGrab with attached desktop and visible mouse cursor."""
-    from PIL import ImageGrab, ImageDraw
+def capture_pc_frame(scale: float = 0.5, quality: int = 45, show_cursor: bool = True) -> bytes:
+    """Ultra-fast screen capture using ImageGrab with NEAREST scaling and visible mouse cursor."""
+    from PIL import ImageGrab, ImageDraw, Image
     from app.actions import ensure_desktop_attached
     ensure_desktop_attached()
     img = ImageGrab.grab()
     w, h = img.size
     target_w, target_h = int(w * scale), int(h * scale)
-    img_small = img.resize((target_w, target_h))
+    img_small = img.resize((target_w, target_h), Image.NEAREST)
     if show_cursor:
         try:
             mx, my = pyautogui.position()
@@ -499,30 +500,53 @@ def capture_pc_frame(scale: float = 0.55, quality: int = 65, show_cursor: bool =
 async def get_screenshot(raw: bool = False):
     """Captures and returns the current PC screen as an optimized JPEG image."""
     try:
-        scale = 1.0 if raw else 0.65
-        quality = 85 if raw else 65
-        frame = capture_pc_frame(scale=scale, quality=quality, show_cursor=True)
-        return StreamingResponse(io.BytesIO(frame), media_type="image/jpeg")
+        scale = 1.0 if raw else 0.5
+        quality = 85 if raw else 45
+        frame = await asyncio.to_thread(capture_pc_frame, scale=scale, quality=quality, show_cursor=True)
+        return Response(
+            content=frame,
+            media_type="image/jpeg",
+            headers={
+                "Content-Length": str(len(frame)),
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+            }
+        )
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.get("/api/screen/stream")
 async def get_screen_stream():
-    """Streams live PC screen as a smooth MJPEG video stream with visible mouse cursor."""
+    """Streams live PC screen as a high-speed, zero-lag MJPEG video stream with visible cursor."""
     import asyncio
 
     async def frame_generator():
         while True:
             try:
-                frame = capture_pc_frame(scale=0.55, quality=55, show_cursor=True)
-                yield (b"--frame\r\n"
-                       b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
-                await asyncio.sleep(0.09)  # ~11 FPS
+                # Offload capture to background thread pool so asyncio loop is never blocked
+                frame = await asyncio.to_thread(capture_pc_frame, scale=0.5, quality=45, show_cursor=True)
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n"
+                    b"Content-Length: " + str(len(frame)).encode() + b"\r\n\r\n"
+                    + frame + b"\r\n"
+                )
+                await asyncio.sleep(0.035)  # ~25-28 FPS high-speed streaming
+            except asyncio.CancelledError:
+                break
             except Exception:
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.08)
 
-    return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(
+        frame_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Connection": "close"
+        }
+    )
 
 
 @app.post("/api/files/upload")
@@ -630,6 +654,45 @@ async def http_whatsapp_open_chat(data: dict):
     if not recipient:
         return {"success": False, "message": "Recipient cannot be empty."}
     return open_whatsapp_chat(recipient)
+
+
+@app.websocket("/ws/screen")
+async def websocket_screen_stream(websocket: WebSocket):
+    """
+    Dedicated high-speed binary WebSocket stream for live PC screen.
+    Streams directly to Canvas on mobile, completely bypassing HTTP rendering queues
+    and touch event freezes.
+    """
+    token = websocket.query_params.get("token")
+    client_host = websocket.client.host if websocket.client else "unknown"
+    is_authorized = False
+    if client_host in ("127.0.0.1", "::1", "localhost"):
+        is_authorized = True
+    elif client_host.startswith("100.") and client_host in settings.AUTHORIZED_TAILSCALE_IPS:
+        is_authorized = True
+    elif token == settings.AUTHORIZED_DEVICE_TOKEN:
+        is_authorized = True
+
+    if not is_authorized:
+        await websocket.close(code=4003)
+        return
+
+    await websocket.accept()
+    logger.info(f"Live WebSocket Screen Stream connected: {client_host}")
+    try:
+        while True:
+            frame = await asyncio.to_thread(capture_pc_frame, scale=0.5, quality=42, show_cursor=True)
+            await websocket.send_bytes(frame)
+            await asyncio.sleep(0.035)  # ~28 FPS ultra-smooth
+    except WebSocketDisconnect:
+        logger.info(f"Live WebSocket Screen Stream disconnected: {client_host}")
+    except Exception as e:
+        logger.warning(f"Screen stream socket closed: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 @app.websocket("/ws")

@@ -144,17 +144,24 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       background: var(--bg);
       color: var(--text);
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
       min-height: 100vh;
-      padding: 12px;
+      width: 100%;
+      margin: 0;
+      padding: 10px 8px;
       overflow-x: hidden;
+      box-sizing: border-box;
     }}
     .container {{
       width: 100%;
       max-width: 520px;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }}
     header {{
       display: flex;
@@ -923,42 +930,71 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     </div>
   </div>
 
-  <!-- TAB: SCREEN MIRROR & SCREENSHOT -->
+  <!-- TAB: SCREEN MIRROR & MOUSE -->
   <div id="tab-screen" class="tab-content">
-    <div class="card">
-      <div class="card-title">
-        <span>📺 Live PC Screen Stream</span>
+    <div class="card" style="border-color: rgba(99, 102, 241, 0.4); padding: 12px;">
+      
+      <!-- 1. LIVE PC SCREEN STREAM -->
+      <div class="card-title" style="margin-bottom:8px;">
+        <span>📺 Live PC Screen</span>
         <button id="streamToggleBtn" class="btn" style="padding:4px 10px; font-size:0.75rem; background:#4f46e5; border-color:#6366f1;" onclick="toggleScreenStreamWeb()">▶️ Start Stream</button>
       </div>
-      <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:10px;">
-        Low-latency live video stream of your Windows desktop directly in your phone browser.
-      </div>
-      <div id="screenStreamContainer" style="width:100%; min-height:180px; background:#0b1120; border:1px solid #1e293b; border-radius:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+      <div id="screenStreamContainer" style="position:relative; width:100%; aspect-ratio:16/9; background:#000; border:2px solid #1e293b; border-radius:10px; display:flex; align-items:center; justify-content:center; overflow:hidden; touch-action:none; user-select:none; cursor:crosshair;">
         <span id="screenPlaceholder" style="color:#64748b; font-size:0.8rem;">Tap 'Start Stream' to mirror PC screen</span>
-        <img id="screenStreamImg" style="width:100%; display:none; border-radius:10px;" alt="Live PC Screen" />
+        <canvas id="screenCanvas" style="width:100%; height:100%; object-fit:contain; display:none; border-radius:8px; pointer-events:none;"></canvas>
+        <img id="screenStreamImg" style="width:100%; height:100%; object-fit:contain; display:none; border-radius:8px; pointer-events:none;" alt="Live PC Screen" />
+        <div id="screenTouchHint" style="display:none; position:absolute; top:8px; right:8px; background:rgba(15,23,42,0.88); border:1px solid #6366f1; border-radius:20px; padding:3px 10px; font-size:0.68rem; color:#a5b4fc; pointer-events:none; z-index:5;">
+          ⚡ Live Socket Stream Active
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        <span>📸 Instant PC Screenshot</span>
+      <!-- 2. HIGH-SPEED MOUSE CONTROLLER BOX -->
+      <div style="margin-top:10px; background:#070d19; border:1px solid #1e293b; border-radius:12px; padding:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.82rem; font-weight:800; color:#c7d2fe; display:flex; align-items:center; gap:5px;">
+            🖱️ Mouse Box
+          </span>
+          <button id="mouseSpeedPill" class="chip" style="padding:2px 8px; font-size:0.68rem; border-color:#38bdf8; color:#38bdf8;" onclick="cycleMouseSpeed()">⚡ Speed: Fast (3.5x)</button>
+        </div>
+
+        <!-- Precision Gliding Touchpad Surface -->
+        <div id="screenTouchpad" class="touchpad" style="height:130px; background:#0b1222; border:1.5px dashed #4f46e5; border-radius:10px;">
+          <span style="font-size:0.86rem; color:#a5b4fc; font-weight:700;">👆 Fast Touchpad: Drag to Move PC Mouse</span>
+          <span style="font-size:0.7rem; color:#64748b; margin-top:3px;">1-Tap: Left Click &bull; 2-Tap: Right Click</span>
+        </div>
       </div>
-      <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <button class="btn" style="flex:1; background:var(--accent); border-color:var(--accent); padding:10px;" onclick="takeScreenshotWeb()">
-          📸 Capture Screenshot Now
+
+      <!-- 3. PC LIVE TYPING BOX -->
+      <div style="margin-top:10px; background:#070d19; border:1px solid #1e293b; border-radius:12px; padding:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.82rem; font-weight:800; color:#c7d2fe; display:flex; align-items:center; gap:5px;">
+            ⌨️ Live Typing Box
+          </span>
+          <span style="font-size:0.68rem; color:#64748b;">Direct PC Cursor Typing</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="screenLiveTypeInput" class="input-bar" placeholder="Yahan type karein aur Type dabayein..." onkeydown="if(event.key==='Enter') sendScreenLiveType()" />
+          <button class="btn" style="background:linear-gradient(135deg, #4f46e5, #6366f1); border-color:#6366f1; padding:0 14px; font-weight:800; white-space:nowrap;" onclick="sendScreenLiveType()">
+            Type 🚀
+          </button>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; margin-top:8px;">
+          <button class="btn" style="padding:8px 4px; font-size:0.75rem; background:#1e293b; border-color:#334155;" onclick="sendKeyStroke('enter')">⏎ Enter</button>
+          <button class="btn" style="padding:8px 4px; font-size:0.75rem; background:#1e293b; border-color:#334155;" onclick="sendKeyStroke('backspace')">⌫ Backspace</button>
+          <button class="btn" style="padding:8px 4px; font-size:0.75rem; background:#1e293b; border-color:#334155;" onclick="sendKeyStroke('space')">␣ Space</button>
+        </div>
+      </div>
+
+      <!-- 4. COMPACT 1-TAP SCREENSHOT & DIRECT DOWNLOAD BUTTON -->
+      <div style="margin-top:10px;">
+        <button id="quickScreenDlBtn" class="btn" style="width:100%; padding:11px; font-size:0.82rem; font-weight:700; background:#0f172a; border-color:#334155; color:#94a3b8; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="quickCaptureAndDownloadWeb()">
+          <span>📸</span>
+          <span>Capture Screen & Direct Download</span>
         </button>
-        <a id="downloadScreenshotBtn" class="btn" style="display:none; padding:10px; text-decoration:none; background:#059669; border-color:#10b981;" download="pc_screenshot.jpg">
-          💾 Download
-        </a>
       </div>
-      <div id="screenshotPreviewContainer" style="width:100%; min-height:140px; background:#0b1120; border:1px solid #1e293b; border-radius:10px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-        <span id="screenshotPlaceholder" style="color:#64748b; font-size:0.8rem;">No screenshot captured yet</span>
-        <img id="screenshotImg" style="width:100%; display:none; border-radius:10px;" alt="PC Screenshot" />
-      </div>
+
     </div>
   </div>
-
-
 
   <!-- TAB: FILES & UNIVERSAL CLIPBOARD -->
   <div id="tab-files" class="tab-content">
@@ -1176,14 +1212,6 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       </button>
     </div>
   </div>
-
-  <!-- Live Activity Log -->
-  <div class="card" style="padding: 10px;">
-    <div class="card-title" style="margin-bottom: 6px;"><span>⚡ Live Feedback</span></div>
-    <div id="logBox" class="log-box">
-      <div class="log-entry">Connected to PC: {local_ip}:{port}</div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -1209,11 +1237,13 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   }}
 
   function log(msg) {{
+    const el = document.getElementById("logBox");
+    if (!el) return;
     const entry = document.createElement("div");
     entry.className = "log-entry";
     const time = new Date().toLocaleTimeString();
     entry.textContent = `[${{time}}] ${{msg}}`;
-    logBox.prepend(entry);
+    el.prepend(entry);
   }}
 
   function switchTab(tabId, el) {{
@@ -1251,28 +1281,116 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     return fetch(url, options);
   }}
 
-  // Screen Stream & Screenshot
+  // Live WebSocket Screen Streamer (Zero-Latency Canvas Engine)
   let screenStreaming = false;
+  let screenWs = null;
+
+  function startScreenWebSocket() {{
+    if (screenWs) {{
+      try {{ screenWs.close(); }} catch(e) {{}}
+      screenWs = null;
+    }}
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${{protocol}}//${{location.host}}/ws/screen?token=${{encodeURIComponent(currentDeviceToken)}}`;
+
+    screenWs = new WebSocket(wsUrl);
+    screenWs.binaryType = "blob";
+
+    const canvas = document.getElementById("screenCanvas");
+    const ctx = canvas ? canvas.getContext("2d") : null;
+    const placeholder = document.getElementById("screenPlaceholder");
+
+    screenWs.onopen = () => {{
+      showToast("⚡ Live Socket Screen Connected!");
+    }};
+
+    screenWs.onmessage = async (event) => {{
+      if (!screenStreaming) return;
+      if (event.data instanceof Blob) {{
+        try {{
+          const bitmap = await createImageBitmap(event.data);
+          if (canvas && ctx) {{
+            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {{
+              canvas.width = bitmap.width;
+              canvas.height = bitmap.height;
+            }}
+            ctx.drawImage(bitmap, 0, 0);
+            bitmap.close();
+            if (placeholder && placeholder.style.display !== "none") {{
+              placeholder.style.display = "none";
+            }}
+          }}
+        }} catch(err) {{
+          const url = URL.createObjectURL(event.data);
+          const img = document.getElementById("screenStreamImg");
+          if (img) {{
+            img.onload = () => URL.revokeObjectURL(url);
+            img.src = url;
+            img.style.display = "block";
+          }}
+        }}
+      }}
+    }};
+
+    screenWs.onerror = () => {{
+      if (screenStreaming) {{
+        setTimeout(startScreenWebSocket, 1500);
+      }}
+    }};
+
+    screenWs.onclose = () => {{
+      if (screenStreaming) {{
+        setTimeout(startScreenWebSocket, 1000);
+      }}
+    }};
+  }}
+
   function toggleScreenStreamWeb() {{
+    const canvas = document.getElementById("screenCanvas");
     const img = document.getElementById("screenStreamImg");
     const placeholder = document.getElementById("screenPlaceholder");
     const btn = document.getElementById("streamToggleBtn");
+    const hint = document.getElementById("screenTouchHint");
     screenStreaming = !screenStreaming;
+
     if (screenStreaming) {{
-      img.src = "/api/screen/stream?token=" + encodeURIComponent(currentDeviceToken) + "&t=" + Date.now();
-      img.style.display = "block";
+      if (canvas) canvas.style.display = "block";
       if (placeholder) placeholder.style.display = "none";
+      if (hint) hint.style.display = "block";
       btn.textContent = "⏹️ Stop Stream";
       btn.style.background = "#dc2626";
-      showToast("📺 Live Screen Stream Active");
+      showToast("⚡ Live Socket Stream Shuru!");
+
+      startScreenWebSocket();
     }} else {{
-      img.src = "";
-      img.style.display = "none";
+      if (screenWs) {{
+        try {{ screenWs.close(); }} catch(e) {{}}
+        screenWs = null;
+      }}
+      if (canvas) canvas.style.display = "none";
+      if (img) img.style.display = "none";
       if (placeholder) placeholder.style.display = "block";
+      if (hint) hint.style.display = "none";
       btn.textContent = "▶️ Start Stream";
       btn.style.background = "#4f46e5";
       showToast("📺 Screen Stream Stopped");
     }}
+  }}
+
+  // Live PC Typing Functions
+  function sendScreenLiveType() {{
+    const input = document.getElementById("screenLiveTypeInput");
+    if (!input) return;
+    const txt = input.value;
+    if (!txt) return;
+    sendAction("type_text", {{ text: txt }});
+    input.value = "";
+    showToast("⌨️ Typed on PC: " + txt);
+  }}
+
+  function sendKeyStroke(k) {{
+    sendAction("press_key", {{ key: k }});
+    showToast("⌨️ Key: " + k.toUpperCase());
   }}
 
   function takeScreenshotWeb() {{
@@ -1963,96 +2081,257 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     clearLiveTypeInput();
   }}
 
-  // Zero-lag C-kernel touch tracking with accumulator
-  // Zero-lag C-kernel touch tracking with accumulator & tap/double-tap gestures
-  let lastX = 0;
-  let lastY = 0;
-  let accumX = 0;
-  let accumY = 0;
-  let isMoving = false;
-  let moveThrottle = 0;
+  // Mouse Speed & Sensitivity Controller
+  let mouseSpeedMultiplier = parseFloat(localStorage.getItem("mouse_speed_mult") || "3.5");
 
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartTime = 0;
-  let hasMoved = false;
-  let lastTapTime = 0;
-  let tapTimer = null;
-
-  touchpad.addEventListener("touchstart", (e) => {{
-    const touch = e.touches[0];
-    lastX = touch.clientX;
-    lastY = touch.clientY;
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    touchStartTime = Date.now();
-    hasMoved = false;
-    accumX = 0;
-    accumY = 0;
-    isMoving = true;
-    touchpad.classList.add("active");
-  }});
-
-  touchpad.addEventListener("touchmove", (e) => {{
-    if (!isMoving) return;
-    const touch = e.touches[0];
-    const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
-    if (dist > 8) {{
-      hasMoved = true;
-      if (tapTimer) {{
-        // If single tap timer was waiting and user drags, fire the pending left click
-        clearTimeout(tapTimer);
-        tapTimer = null;
-      }}
+  function cycleMouseSpeed() {{
+    if (mouseSpeedMultiplier <= 2.2) {{
+      mouseSpeedMultiplier = 3.5;
+    }} else if (mouseSpeedMultiplier <= 3.5) {{
+      mouseSpeedMultiplier = 5.0;
+    }} else {{
+      mouseSpeedMultiplier = 2.2;
     }}
+    localStorage.setItem("mouse_speed_mult", mouseSpeedMultiplier);
+    updateMouseSpeedPill();
+    showToast("⚡ Mouse Speed: " + mouseSpeedMultiplier + "x");
+  }}
 
-    accumX += (touch.clientX - lastX);
-    accumY += (touch.clientY - lastY);
-    lastX = touch.clientX;
-    lastY = touch.clientY;
+  function updateMouseSpeedPill() {{
+    const pill = document.getElementById("mouseSpeedPill");
+    if (!pill) return;
+    const label = mouseSpeedMultiplier >= 5.0 ? "⚡ Ultra (5x)" : (mouseSpeedMultiplier >= 3.5 ? "⚡ Fast (3.5x)" : "🎯 Normal (2.2x)");
+    pill.textContent = "Speed: " + label;
+  }}
+  updateMouseSpeedPill();
 
-    const now = Date.now();
-    if (now - moveThrottle > 35) {{
-      moveThrottle = now;
-      const sendDx = Math.round(accumX * 2.2);
-      const sendDy = Math.round(accumY * 2.2);
-      accumX = 0;
-      accumY = 0;
-      if (ws && ws.readyState === WebSocket.OPEN && (sendDx !== 0 || sendDy !== 0)) {{
-        ws.send(JSON.stringify({{
-          type: "action",
-          payload: {{ action: "mouse_move", dx: sendDx, dy: sendDy }}
-        }}));
-      }}
+
+  // 1-Tap Direct Screenshot Capture & Download
+  async function quickCaptureAndDownloadWeb() {{
+    const btn = document.getElementById("quickScreenDlBtn");
+    if (btn) btn.innerHTML = "<span>⏳</span> <span>Capturing Screenshot...</span>";
+    showToast("📸 Capturing & Downloading Screenshot...");
+    try {{
+      const url = "/api/screen/screenshot?token=" + encodeURIComponent(currentDeviceToken) + "&t=" + Date.now();
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Capture failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "pc_screen_" + Date.now() + ".jpg";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      showToast("✅ Screenshot Downloaded to Phone!");
+    }} catch(e) {{
+      showToast("❌ Screenshot download error", true);
+    }} finally {{
+      if (btn) btn.innerHTML = "<span>📸</span> <span>Capture Screen & Direct Download</span>";
     }}
-  }});
+  }}
 
-  touchpad.addEventListener("touchend", () => {{
-    isMoving = false;
-    touchpad.classList.remove("active");
+  // Ultra-Responsive 70 FPS Touchpad with Hardware Delta Injection & Dynamic Acceleration
+  function bindTouchpad(el) {{
+    if (!el) return;
+    let tLastX = 0, tLastY = 0, tAccumX = 0, tAccumY = 0;
+    let tIsMoving = false, tMoveThrottle = 0;
+    let tStartX = 0, tStartY = 0, tStartTime = 0;
+    let tHasMoved = false, tLastTapTime = 0, tTapTimer = null;
 
-    const touchDuration = Date.now() - touchStartTime;
-    // Tap detection: finger didn't drag and released quickly (< 280ms)
-    if (!hasMoved && touchDuration < 280) {{
-      const now = Date.now();
-      if (now - lastTapTime < 320) {{
-        // DOUBLE TAP -> RIGHT CLICK
-        if (tapTimer) {{
-          clearTimeout(tapTimer);
-          tapTimer = null;
+    el.addEventListener("touchstart", (e) => {{
+      const touch = e.touches[0];
+      tLastX = touch.clientX;
+      tLastY = touch.clientY;
+      tStartX = touch.clientX;
+      tStartY = touch.clientY;
+      tStartTime = Date.now();
+      tHasMoved = false;
+      tAccumX = 0;
+      tAccumY = 0;
+      tIsMoving = true;
+      el.classList.add("active");
+    }}, {{ passive: false }});
+
+    el.addEventListener("touchmove", (e) => {{
+      if (!tIsMoving) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dist = Math.hypot(touch.clientX - tStartX, touch.clientY - tStartY);
+      if (dist > 6) {{
+        tHasMoved = true;
+        if (tTapTimer) {{
+          clearTimeout(tTapTimer);
+          tTapTimer = null;
         }}
-        lastTapTime = 0;
-        sendMouseClick("right");
-      }} else {{
-        // SINGLE TAP -> LEFT CLICK
-        lastTapTime = now;
-        tapTimer = setTimeout(() => {{
-          sendMouseClick("left");
-          tapTimer = null;
-        }}, 250);
       }}
-    }}
-  }});
+
+      const deltaX = (touch.clientX - tLastX);
+      const deltaY = (touch.clientY - tLastY);
+      tAccumX += deltaX;
+      tAccumY += deltaY;
+      tLastX = touch.clientX;
+      tLastY = touch.clientY;
+
+      const now = Date.now();
+      if (now - tMoveThrottle > 14) {{
+        tMoveThrottle = now;
+        const stepDist = Math.hypot(deltaX, deltaY);
+        // Dynamic acceleration boost for quick flicks vs slow precision
+        const accel = stepDist > 6 ? 1.45 : 1.0;
+        const sendDx = Math.round(tAccumX * mouseSpeedMultiplier * accel);
+        const sendDy = Math.round(tAccumY * mouseSpeedMultiplier * accel);
+        tAccumX = 0;
+        tAccumY = 0;
+        if (ws && ws.readyState === WebSocket.OPEN && (sendDx !== 0 || sendDy !== 0)) {{
+          ws.send(JSON.stringify({{
+            type: "action",
+            payload: {{ action: "mouse_move", dx: sendDx, dy: sendDy }}
+          }}));
+        }}
+      }}
+    }}, {{ passive: false }});
+
+    el.addEventListener("touchend", () => {{
+      tIsMoving = false;
+      el.classList.remove("active");
+
+      const touchDuration = Date.now() - tStartTime;
+      if (!tHasMoved && touchDuration < 280) {{
+        const now = Date.now();
+        if (now - tLastTapTime < 320) {{
+          if (tTapTimer) {{
+            clearTimeout(tTapTimer);
+            tTapTimer = null;
+          }}
+          tLastTapTime = 0;
+          sendMouseClick("right");
+        }} else {{
+          tLastTapTime = now;
+          tTapTimer = setTimeout(() => {{
+            sendMouseClick("left");
+            tTapTimer = null;
+          }}, 240);
+        }}
+      }}
+    }});
+  }}
+
+  // Initialize both touchpads
+  bindTouchpad(document.getElementById("touchpad"));
+  bindTouchpad(document.getElementById("screenTouchpad"));
+
+  // Interactive Live Screen direct touch & drag controller
+  function initScreenDirectTouch() {{
+    const container = document.getElementById("screenStreamContainer");
+    const img = document.getElementById("screenStreamImg");
+    const badge = document.getElementById("screenCoordBadge");
+    if (!container || !img) return;
+
+    let sLastX = 0, sLastY = 0, sAccumX = 0, sAccumY = 0;
+    let sIsMoving = false, sMoveThrottle = 0;
+    let sStartX = 0, sStartY = 0, sStartTime = 0;
+    let sHasMoved = false, sLastTapTime = 0, sTapTimer = null;
+
+    container.addEventListener("touchstart", (e) => {{
+      if (!screenStreaming) return;
+      const touch = e.touches[0];
+      sLastX = touch.clientX;
+      sLastY = touch.clientY;
+      sStartX = touch.clientX;
+      sStartY = touch.clientY;
+      sStartTime = Date.now();
+      sHasMoved = false;
+      sAccumX = 0;
+      sAccumY = 0;
+      sIsMoving = true;
+      container.style.borderColor = "var(--accent)";
+    }}, {{ passive: false }});
+
+    container.addEventListener("touchmove", (e) => {{
+      if (!sIsMoving || !screenStreaming) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dist = Math.hypot(touch.clientX - sStartX, touch.clientY - sStartY);
+      if (dist > 6) {{
+        sHasMoved = true;
+        if (sTapTimer) {{
+          clearTimeout(sTapTimer);
+          sTapTimer = null;
+        }}
+      }}
+
+      const deltaX = (touch.clientX - sLastX);
+      const deltaY = (touch.clientY - sLastY);
+      sAccumX += deltaX;
+      sAccumY += deltaY;
+      sLastX = touch.clientX;
+      sLastY = touch.clientY;
+
+      const now = Date.now();
+      if (now - sMoveThrottle > 14) {{
+        sMoveThrottle = now;
+        const stepDist = Math.hypot(deltaX, deltaY);
+        const accel = stepDist > 6 ? 1.45 : 1.0;
+        const sendDx = Math.round(sAccumX * mouseSpeedMultiplier * accel);
+        const sendDy = Math.round(sAccumY * mouseSpeedMultiplier * accel);
+        sAccumX = 0;
+        sAccumY = 0;
+        if (ws && ws.readyState === WebSocket.OPEN && (sendDx !== 0 || sendDy !== 0)) {{
+          ws.send(JSON.stringify({{
+            type: "action",
+            payload: {{ action: "mouse_move", dx: sendDx, dy: sendDy }}
+          }}));
+        }}
+      }}
+    }}, {{ passive: false }});
+
+    container.addEventListener("touchend", () => {{
+      if (!sIsMoving) return;
+      sIsMoving = false;
+      container.style.borderColor = "#1e293b";
+
+      const touchDuration = Date.now() - sStartTime;
+      // Direct Tap on Screen: tap coordinate maps to PC screen coordinate
+      if (!sHasMoved && touchDuration < 300) {{
+        const rect = img.getBoundingClientRect();
+        const normX = Math.max(0, Math.min(1, (sStartX - rect.left) / (rect.width || 1)));
+        const normY = Math.max(0, Math.min(1, (sStartY - rect.top) / (rect.height || 1)));
+
+        const now = Date.now();
+        if (now - sLastTapTime < 320) {{
+          if (sTapTimer) {{
+            clearTimeout(sTapTimer);
+            sTapTimer = null;
+          }}
+          sLastTapTime = 0;
+          if (ws && ws.readyState === WebSocket.OPEN) {{
+            ws.send(JSON.stringify({{
+              type: "action",
+              payload: {{ action: "mouse_click_at", x: normX, y: normY, button: "right" }}
+            }}));
+            if (badge) badge.textContent = `Right Click @ ${{Math.round(normX*100)}}%,${{Math.round(normY*100)}}%`;
+            if (navigator.vibrate) navigator.vibrate(25);
+          }}
+        }} else {{
+          sLastTapTime = now;
+          sTapTimer = setTimeout(() => {{
+            if (ws && ws.readyState === WebSocket.OPEN) {{
+              ws.send(JSON.stringify({{
+                type: "action",
+                payload: {{ action: "mouse_click_at", x: normX, y: normY, button: "left" }}
+              }}));
+              if (badge) badge.textContent = `Click @ ${{Math.round(normX*100)}}%,${{Math.round(normY*100)}}%`;
+              if (navigator.vibrate) navigator.vibrate(25);
+            }}
+            sTapTimer = null;
+          }}, 240);
+        }}
+      }}
+    }});
+  }}
+  initScreenDirectTouch();
 
   // Voice & Text Commands
   function sendTextCommand() {{

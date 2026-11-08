@@ -2,6 +2,7 @@ import ctypes
 import os
 import shutil
 import subprocess
+import threading
 import time
 import webbrowser
 import winsound
@@ -120,6 +121,7 @@ VK_MEDIA_PLAY_PAUSE = 0xB3
 VK_F11 = 0x7A
 
 KEYEVENTF_KEYUP = 0x0002
+MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
 MOUSEEVENTF_RIGHTDOWN = 0x0008
@@ -186,10 +188,59 @@ def media_play_pause() -> str:
     return "Media Play / Pause Toggled"
 
 
-def play_youtube_video() -> str:
+def play_youtube_video(search_query: str = None) -> str:
     """
     Plays the current video on YouTube, or clicks and starts the first video on a search page.
+    If search_query is passed, searches YouTube first and auto-clicks first video after page load.
     """
+    import urllib.parse
+    if search_query and search_query.strip():
+        q_clean = search_query.strip()
+        encoded = urllib.parse.quote_plus(q_clean)
+        url = f"https://www.youtube.com/results?search_query={encoded}"
+        open_url(url)
+
+        def auto_start():
+            time.sleep(3.2)
+            try:
+                ensure_desktop_attached()
+                desk = user32.OpenInputDesktop(0, False, 0x01FF)
+                if desk:
+                    user32.SetThreadDesktop(desk)
+                target_hwnd = None
+                def enum_cb(hwnd, _):
+                    nonlocal target_hwnd
+                    if user32.IsWindowVisible(hwnd):
+                        length = user32.GetWindowTextLengthW(hwnd)
+                        if length > 0:
+                            buff = ctypes.create_unicode_buffer(length + 1)
+                            user32.GetWindowTextW(hwnd, buff, length + 1)
+                            t = buff.value.lower()
+                            if "youtube" in t or "chrome" in t:
+                                target_hwnd = hwnd
+                                return False
+                    return True
+                cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+                user32.EnumDesktopWindows(desk or 0, cb, 0)
+                if target_hwnd:
+                    user32.ShowWindow(target_hwnd, 9)
+                    user32.SetForegroundWindow(target_hwnd)
+                time.sleep(0.3)
+                user32.SetCursorPos(480, 260)
+                time.sleep(0.05)
+                user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+                time.sleep(0.05)
+                user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+                time.sleep(0.2)
+                user32.keybd_event(0x4B, 0, 0, 0)  # 'k'
+                user32.keybd_event(0x4B, 0, KEYEVENTF_KEYUP, 0)
+                play_feedback_sound()
+            except Exception as e:
+                logger.warning(f"Error in auto_start YouTube: {e}")
+
+        threading.Thread(target=auto_start, daemon=True).start()
+        return f"YouTube par '{q_clean}' play ho raha hai! 🎵"
+
     ensure_desktop_attached()
     desk = user32.OpenInputDesktop(0, False, 0x01FF)
     if desk:
@@ -359,15 +410,18 @@ def run_macro_workflow(macro_name: str) -> str:
     return f"Macro '{macro_name}' executed"
 
 
-# Native cursor movement with physical boundary checks
+# High-speed hardware mouse delta injection (Zero lag, zero kernel lock)
 def mouse_move(dx: int, dy: int) -> str:
+    user32.mouse_event(MOUSEEVENTF_MOVE, int(dx), int(dy), 0, 0)
+    return "Mouse moved"
+
+
+def mouse_move_to(norm_x: float, norm_y: float) -> str:
     ensure_desktop_attached()
-    pt = POINT()
-    user32.GetCursorPos(ctypes.byref(pt))
-    new_x = max(0, min(pt.x + dx, SCREEN_W - 1))
-    new_y = max(0, min(pt.y + dy, SCREEN_H - 1))
-    user32.SetCursorPos(new_x, new_y)
-    return f"Mouse moved to ({new_x}, {new_y})"
+    target_x = max(0, min(int(norm_x * SCREEN_W), SCREEN_W - 1))
+    target_y = max(0, min(int(norm_y * SCREEN_H), SCREEN_H - 1))
+    user32.SetCursorPos(target_x, target_y)
+    return f"Mouse moved to ({target_x}, {target_y})"
 
 
 def mouse_click(button: str = "left") -> str:
@@ -381,7 +435,18 @@ def mouse_click(button: str = "left") -> str:
         user32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
         user32.mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
         return "Right Click"
+    elif btn in ["double", "double_click"]:
+        return mouse_double_click()
     return "Click"
+
+
+def mouse_click_at(norm_x: float, norm_y: float, button: str = "left") -> str:
+    ensure_desktop_attached()
+    target_x = max(0, min(int(norm_x * SCREEN_W), SCREEN_W - 1))
+    target_y = max(0, min(int(norm_y * SCREEN_H), SCREEN_H - 1))
+    user32.SetCursorPos(target_x, target_y)
+    time.sleep(0.02)
+    return mouse_click(button)
 
 
 def mouse_double_click() -> str:
@@ -579,6 +644,104 @@ def safe_close_window() -> str:
         return f"Closed window: {title[:25]}"
     except Exception as e:
         return f"Could not close window: {e}"
+
+
+def minimize_window(target_name: str = None) -> str:
+    """Minimizes a specific application window by name (e.g. 'antigravity', 'chrome') or active window."""
+    try:
+        ensure_desktop_attached()
+        desk = user32.OpenInputDesktop(0, False, 0x01FF)
+        SW_MINIMIZE = 6
+        clean_name = (target_name or "").strip().lower()
+
+        if not clean_name or clean_name in ["current", "active", "isay", "isko", "window"]:
+            hwnd = user32.GetForegroundWindow()
+            if hwnd:
+                user32.ShowWindow(hwnd, SW_MINIMIZE)
+                play_feedback_sound()
+                return "Active window minimized"
+            return "No active window found"
+
+        matched_hwnd = None
+        matched_title = ""
+
+        def enum_cb(h, _):
+            nonlocal matched_hwnd, matched_title
+            if user32.IsWindowVisible(h):
+                length = user32.GetWindowTextLengthW(h)
+                if length > 0:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(h, buf, length + 1)
+                    t = buf.value
+                    if clean_name in t.lower():
+                        matched_hwnd = h
+                        matched_title = t
+                        return False
+            return True
+
+        cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+        user32.EnumDesktopWindows(desk or 0, cb, 0)
+
+        if matched_hwnd:
+            user32.ShowWindow(matched_hwnd, SW_MINIMIZE)
+            play_feedback_sound()
+            return f"Window '{matched_title[:30]}' minimized"
+
+        hwnd = user32.GetForegroundWindow()
+        if hwnd:
+            user32.ShowWindow(hwnd, SW_MINIMIZE)
+            play_feedback_sound()
+            return f"Active window minimized ({target_name})"
+        return f"Window '{target_name}' not found"
+    except Exception as e:
+        return f"Could not minimize window: {e}"
+
+
+def maximize_window(target_name: str = None) -> str:
+    """Maximizes a specific application window by name or active window."""
+    try:
+        ensure_desktop_attached()
+        desk = user32.OpenInputDesktop(0, False, 0x01FF)
+        SW_MAXIMIZE = 3
+        clean_name = (target_name or "").strip().lower()
+
+        if not clean_name or clean_name in ["current", "active", "isay", "isko", "window"]:
+            hwnd = user32.GetForegroundWindow()
+            if hwnd:
+                user32.ShowWindow(hwnd, SW_MAXIMIZE)
+                play_feedback_sound()
+                return "Active window maximized"
+            return "No active window found"
+
+        matched_hwnd = None
+        matched_title = ""
+
+        def enum_cb(h, _):
+            nonlocal matched_hwnd, matched_title
+            if user32.IsWindowVisible(h):
+                length = user32.GetWindowTextLengthW(h)
+                if length > 0:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(h, buf, length + 1)
+                    t = buf.value
+                    if clean_name in t.lower():
+                        matched_hwnd = h
+                        matched_title = t
+                        return False
+            return True
+
+        cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+        user32.EnumDesktopWindows(desk or 0, cb, 0)
+
+        if matched_hwnd:
+            user32.ShowWindow(matched_hwnd, SW_MAXIMIZE)
+            user32.SetForegroundWindow(matched_hwnd)
+            play_feedback_sound()
+            return f"Window '{matched_title[:30]}' maximized"
+
+        return f"Window '{target_name}' not found"
+    except Exception as e:
+        return f"Could not maximize window: {e}"
 
 
 def lock_screen() -> str:
@@ -1114,9 +1277,20 @@ def execute_universal_action(action_type: str, payload: dict[str, Any] = None) -
             dy = int(payload.get("dy", 0))
             msg = mouse_move(dx, dy)
             return {"success": True, "message": msg, "action": act, "silent": True}
+        elif act == "mouse_move_to":
+            nx = float(payload.get("x", 0))
+            ny = float(payload.get("y", 0))
+            msg = mouse_move_to(nx, ny)
+            return {"success": True, "message": msg, "action": act, "silent": True}
         elif act == "mouse_click":
             btn = payload.get("button", "left")
             msg = mouse_click(btn)
+        elif act == "mouse_click_at":
+            nx = float(payload.get("x", 0))
+            ny = float(payload.get("y", 0))
+            btn = payload.get("button", "left")
+            msg = mouse_click_at(nx, ny, btn)
+            return {"success": True, "message": msg, "action": act, "silent": True}
         elif act == "mouse_double_click":
             msg = mouse_double_click()
         elif act == "mouse_scroll":
@@ -1163,6 +1337,12 @@ def execute_universal_action(action_type: str, payload: dict[str, Any] = None) -
             msg = launch_app(app_id)
 
         # Window Controls
+        elif act in ["minimize_window", "minimize"]:
+            target = payload.get("target") or payload.get("app")
+            msg = minimize_window(target)
+        elif act in ["maximize_window", "maximize"]:
+            target = payload.get("target") or payload.get("app")
+            msg = maximize_window(target)
         elif act == "close_window":
             msg = safe_close_window()
         elif act == "show_desktop":
