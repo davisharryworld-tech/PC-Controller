@@ -32,6 +32,7 @@ contacts.json
 **/.dart_tool/
 
 # Android & Gradle
+*.apk
 .gradle/
 **/android/.gradle/
 local.properties
