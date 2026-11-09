@@ -158,9 +158,11 @@ def execute_action_dict(act: Dict[str, Any]) -> Dict[str, Any]:
         msg = type_text(txt, press_enter=bool(act.get("press_enter", True)))
         return {"success": True, "message": msg, "action": "type_text"}
 
-    elif name in ["antigravity_proceed", "proceed"]:
-        msg = antigravity_proceed()
-        return {"success": True, "message": msg, "action": "antigravity_proceed"}
+    elif name in ["antigravity_proceed", "proceed", "toggle_auto_proceed", "antigravity_bot"]:
+        from app.actions import toggle_auto_proceed_loop
+        state = toggle_auto_proceed_loop()
+        msg = f"Antigravity Auto-Pilot is {'ACTIVE (Auto-Yes ON)' if state else 'PAUSED'}"
+        return {"success": True, "message": msg, "action": "toggle_auto_proceed", "auto_proceed": state}
 
     elif name in ["volume_up"]:
         msg = volume_up()
@@ -193,10 +195,19 @@ def execute_single_step(step_str: str, context: Dict[str, Any]) -> Dict[str, Any
     raw = step_str.strip()
     low = raw.lower()
 
-    # 1. Antigravity Proceed / Submit / Enter (Auto-coder bot)
-    if any(w in low for w in ["proceed", "submit", "enter dabao", "antigravity proceed", "continue", "aage badhao"]):
-        msg = antigravity_proceed()
-        return {"success": True, "message": msg, "speak": "Antigravity proceed kar diya", "action": "antigravity_proceed"}
+    # 1. Antigravity Proceed / Auto-Pilot Bot (Auto-coder bot)
+    if any(w in low for w in ["antigravity bot", "auto proceed", "auto yes", "proceed bot", "antigravity auto", "bot chalao", "bot start", "bot on", "bot band", "bot stop", "proceed", "submit", "enter dabao", "continue", "aage badhao"]):
+        from app.actions import toggle_auto_proceed_loop
+        if any(w in low for w in ["band", "stop", "pause", "roko", "hatao"]):
+            state = toggle_auto_proceed_loop(False)
+            return {"success": True, "message": "Antigravity Auto-Pilot PAUSED", "speak": "Antigravity bot band kar diya", "action": "toggle_auto_proceed", "auto_proceed": False}
+        elif any(w in low for w in ["chalao", "start", "on", "active", "khol do", "auto"]):
+            state = toggle_auto_proceed_loop(True)
+            return {"success": True, "message": "Antigravity Auto-Pilot ACTIVE (Auto-Yes ON)", "speak": "Antigravity Auto-Pilot chalu kar diya hai, ab permissions khud accept hoti rahengi", "action": "toggle_auto_proceed", "auto_proceed": True}
+        else:
+            state = toggle_auto_proceed_loop()
+            st_text = "chalu" if state else "band"
+            return {"success": True, "message": f"Antigravity Auto-Pilot {'ACTIVE (Auto-Yes ON)' if state else 'PAUSED'}", "speak": f"Antigravity bot {st_text} kar diya", "action": "toggle_auto_proceed", "auto_proceed": state}
 
     # 2. Window Minimize (e.g. "antigravity ko minimize", "minimize chrome", "hata do")
     if any(w in low for w in ["minimize", "chhota karo", "chota karo", "hata do", "hide"]):
