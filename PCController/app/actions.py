@@ -1064,109 +1064,40 @@ def system_cancel_shutdown() -> str:
 _auto_proceed_active = False
 _auto_proceed_thread = None
 
-def get_antigravity_window_hwnd():
-    """Locates the interactive HWND of the Antigravity IDE window on the user desktop."""
-    try:
-        ensure_desktop_attached()
-        desk = user32.OpenInputDesktop(0, False, 0x01FF)
-        if desk:
-            user32.SetThreadDesktop(desk)
-        
-        target_hwnd = None
-        antigravity_pids = {p.pid for p in psutil.process_iter(['name', 'pid']) if p.info['name'] and 'antigravity' in p.info['name'].lower()}
-        
-        def cb(hwnd, extra):
-            nonlocal target_hwnd
-            if user32.IsWindowVisible(hwnd):
-                pid = ctypes.c_ulong()
-                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-                if pid.value in antigravity_pids:
-                    length = user32.GetWindowTextLengthW(hwnd)
-                    if length > 0:
-                        buf = ctypes.create_unicode_buffer(length + 1)
-                        user32.GetWindowTextW(hwnd, buf, length + 1)
-                        t = buf.value.lower()
-                        if any(k in t for k in ["antigravity", "ide", "code"]):
-                            target_hwnd = hwnd
-                            return False
-                    if not target_hwnd:
-                        target_hwnd = hwnd
-            return True
-
-        cb_func = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(cb)
-        user32.EnumDesktopWindows(desk or 0, cb_func, 0)
-        if desk:
-            user32.CloseDesktop(desk)
-        return target_hwnd
-    except Exception as e:
-        logger.debug(f"Antigravity HWND lookup error: {e}")
-        return None
-
-
 def antigravity_proceed() -> str:
     """Instantly sends Enter to active Antigravity/Terminal session to submit or proceed."""
     ensure_desktop_attached()
-    ahwnd = get_antigravity_window_hwnd()
-    if ahwnd:
-        if user32.IsIconic(ahwnd):
-            user32.ShowWindow(ahwnd, 9)  # SW_RESTORE
-        user32.SetForegroundWindow(ahwnd)
-        time.sleep(0.04)
-
     user32.keybd_event(VK_RETURN, 0, 0, 0)
     user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
     play_feedback_sound()
     return "⚡ Proceed / Enter Dispatched to Antigravity!"
 
 
-def get_auto_proceed_status() -> bool:
-    """Returns whether the auto-proceed loop is currently active."""
-    global _auto_proceed_active
-    return bool(_auto_proceed_active)
-
-
 def toggle_auto_proceed_loop(enabled: bool = None) -> bool:
-    """
-    Toggles background Auto-Pilot Bot for continuous Antigravity & terminal sessions.
-    Automatically accepts permissions and continues commands by pressing Enter continuously.
-    """
+    """Toggles background auto-proceed loop for continuous agent sessions."""
     global _auto_proceed_active, _auto_proceed_thread
     if enabled is None:
         _auto_proceed_active = not _auto_proceed_active
     else:
-        _auto_proceed_active = bool(enabled)
+        _auto_proceed_active = enabled
 
     def _loop():
         global _auto_proceed_active
-        logger.info("🤖 Antigravity Auto-Pilot Bot ACTIVE: Auto-approving permissions & continuing commands...")
         while _auto_proceed_active:
-            time.sleep(2.0)  # Check and dispatch every 2.0s for rapid response
+            time.sleep(8)
             if not _auto_proceed_active:
                 break
             try:
                 ensure_desktop_attached()
-                # If Antigravity window exists, ensure it is restored and focused
-                ahwnd = get_antigravity_window_hwnd()
-                if ahwnd:
-                    if user32.IsIconic(ahwnd):
-                        user32.ShowWindow(ahwnd, 9)  # SW_RESTORE
-                    user32.SetForegroundWindow(ahwnd)
-                    time.sleep(0.04)
-
-                # Dispatch hardware Enter key to auto-approve permission / proceed
                 user32.keybd_event(VK_RETURN, 0, 0, 0)
                 user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
-            except Exception as ex:
-                logger.debug(f"Auto-proceed tick exception: {ex}")
-        logger.info("⏸️ Antigravity Auto-Pilot Bot PAUSED.")
+            except Exception:
+                pass
 
     if _auto_proceed_active:
         if _auto_proceed_thread is None or not _auto_proceed_thread.is_alive():
             _auto_proceed_thread = threading.Thread(target=_loop, daemon=True)
             _auto_proceed_thread.start()
-        play_feedback_sound()
-    else:
-        play_feedback_sound()
 
     return _auto_proceed_active
 
@@ -1432,16 +1363,12 @@ def execute_universal_action(action_type: str, payload: dict[str, Any] = None) -
             msg = system_cancel_shutdown()
 
         # Antigravity & AI Automation
-        elif act in ["toggle_auto_proceed", "auto_proceed", "toggle_antigravity_bot", "antigravity_bot", "antigravity_proceed"]:
-            enabled_val = payload.get("enabled") if payload else None
-            state = toggle_auto_proceed_loop(enabled_val)
-            msg = f"🤖 Antigravity Auto-Pilot is now {'ACTIVE (Auto-Yes / Auto-Enter ON 🟢)' if state else 'PAUSED ⏸️'}"
-            return {"success": True, "message": msg, "action": act, "auto_proceed": state}
-        elif act in ["proceed_now", "antigravity_proceed_once", "manual_enter"]:
+        elif act in ["antigravity_proceed", "proceed_now"]:
             msg = antigravity_proceed()
-        elif act == "get_auto_proceed_status":
-            state = get_auto_proceed_status()
-            return {"success": True, "auto_proceed": state, "action": act}
+        elif act in ["toggle_auto_proceed", "auto_proceed"]:
+            state = toggle_auto_proceed_loop(payload.get("enabled"))
+            msg = f"🤖 Antigravity Auto-Proceed is now {'ACTIVE (Auto-submitting)' if state else 'PAUSED'}"
+            return {"success": True, "message": msg, "action": act, "auto_proceed": state}
         elif act in ["rescue_pc", "emergency_rescue"]:
             msg = emergency_rescue_pc()
 

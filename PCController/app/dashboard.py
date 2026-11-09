@@ -825,21 +825,26 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         <span>🤖 Antigravity Auto-Submitter & Proceed Bot</span>
       </div>
       <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 12px; line-height: 1.5;">
-        Jab Antigravity me tasks ya commands chal rahi hon, to prompts aur permissions par auto-yes / Enter hota rahega:
+        Jab aap coding session chala rahe hon, baar baar PC par "Submit" ya "Proceed" dabane ki zaroorat nahi:
       </div>
       
-      <!-- Big Antigravity Auto-Pilot Bot Toggle Button -->
-      <button id="antigravityMainBotBtn" class="btn" style="width:100%; padding:20px; font-size:1.1rem; font-weight:800; background:linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); border:2px solid #a855f7; margin-bottom:12px; box-shadow:0 4px 20px rgba(124, 58, 237, 0.4); text-align:center; transition: all 0.25s ease;" onclick="toggleAutoProceedUI()">
-        <span id="autoBotIcon" class="icon" style="font-size:2rem; display:block; margin-bottom:4px;">🤖</span>
-        <span id="autoBotTitle" style="display:block; font-size:1.15rem; font-weight:800; letter-spacing:0.5px;">START ANTIGRAVITY AUTO-PILOT</span>
-        <span id="autoBotSub" style="display:block; font-size:0.75rem; color:#e0e7ff; margin-top:4px;">1-Tap Dabayein: Permissions aur prompts par khud Auto-Yes & Enter hota rahega</span>
+      <!-- Big 1-Tap Proceed Button -->
+      <button class="btn" style="width:100%; padding:20px; font-size:1.15rem; font-weight:800; background:linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); border:2px solid #a855f7; margin-bottom:12px; box-shadow:0 4px 20px rgba(124, 58, 237, 0.4);" onclick="sendAction('antigravity_proceed')">
+        <span class="icon" style="font-size:2rem;">⚡</span>
+        <span>PROCEED / SUBMIT NOW</span>
+        <span style="font-size:0.75rem; color:#e0e7ff; margin-top:2px;">Dispatches Enter to active Antigravity/Terminal session</span>
       </button>
 
-      <!-- Instant 1-Tap Manual Proceed / Submit Now -->
-      <button class="btn" style="width:100%; padding:11px; font-size:0.82rem; font-weight:700; background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="sendAction('antigravity_proceed_once')">
-        <span>⚡</span>
-        <span>Manual Enter Now (1-Tap Force Submit)</span>
-      </button>
+      <!-- Continuous Auto-Proceed Loop Toggle -->
+      <div style="background:#090d16; border:1px solid #1e293b; border-radius:10px; padding:12px; display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-weight:700; color:#f8fafc; font-size:0.86rem;">Continuous Auto-Proceed Mode</div>
+          <div style="font-size:0.72rem; color:#94a3b8;">Har 8s baad khud Enter press karega taake long runs na rukein</div>
+        </div>
+        <button id="autoProceedToggleBtn" class="btn" style="background:#1e293b; border-color:#334155; padding:8px 14px; font-weight:800;" onclick="toggleAutoProceedUI()">
+          OFF ⏸️
+        </button>
+      </div>
     </div>
 
     <!-- Emergency Rescue Card -->
@@ -1664,9 +1669,6 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
           const msg = data.payload?.message || "Action executed";
           log(`✅ ${{msg}}`);
           showToast(msg);
-          if (data.payload && data.payload.auto_proceed !== undefined) {{
-            updateAutoProceedUI(Boolean(data.payload.auto_proceed));
-          }}
           if (data.payload?.data?.titles) {{
             const rBox = document.getElementById("ytSeoResultsBox");
             const cBox = document.getElementById("ytSeoContent");
@@ -1737,36 +1739,19 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   function toggleAutoProceedUI() {{
     autoProceedState = !autoProceedState;
     sendAction("toggle_auto_proceed", {{ enabled: autoProceedState }});
-    updateAutoProceedUI(autoProceedState);
-  }}
-
-  function updateAutoProceedUI(isActive) {{
-    autoProceedState = isActive;
-    const btn = document.getElementById("antigravityMainBotBtn");
-    const icon = document.getElementById("autoBotIcon");
-    const title = document.getElementById("autoBotTitle");
-    const sub = document.getElementById("autoBotSub");
-
-    if (isActive) {{
-      if (btn) {{
-        btn.style.background = "linear-gradient(135deg, #059669 0%, #10b981 100%)";
-        btn.style.borderColor = "#34d399";
-        btn.style.boxShadow = "0 4px 24px rgba(16, 185, 129, 0.5)";
+    const btn = document.getElementById("autoProceedToggleBtn");
+    if (btn) {{
+      if (autoProceedState) {{
+        btn.textContent = "ON 🟢";
+        btn.style.background = "#15803d";
+        btn.style.borderColor = "#22c55e";
+        showToast("🤖 Auto-Proceed Loop ACTIVE! Submitting every 8s...");
+      }} else {{
+        btn.textContent = "OFF ⏸️";
+        btn.style.background = "#1e293b";
+        btn.style.borderColor = "#334155";
+        showToast("⏸️ Auto-Proceed Loop PAUSED");
       }}
-      if (icon) icon.textContent = "🟢";
-      if (title) title.textContent = "AUTO-PILOT ACTIVE (Auto-Yes ON)";
-      if (sub) sub.textContent = "Commands & permissions auto-accept ho rahe hain. Tap to Stop.";
-      showToast("🤖 Antigravity Auto-Pilot ON! Permissions par khud Enter hoga.");
-    }} else {{
-      if (btn) {{
-        btn.style.background = "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)";
-        btn.style.borderColor = "#a855f7";
-        btn.style.boxShadow = "0 4px 20px rgba(124, 58, 237, 0.4)";
-      }}
-      if (icon) icon.textContent = "🤖";
-      if (title) title.textContent = "START ANTIGRAVITY AUTO-PILOT";
-      if (sub) sub.textContent = "1-Tap Dabayein: Permissions aur prompts par khud Auto-Yes & Enter hota rahega";
-      showToast("⏸️ Antigravity Auto-Pilot PAUSED");
     }}
   }}
 
