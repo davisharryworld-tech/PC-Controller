@@ -747,6 +747,9 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       <span>📱 Open Mobile Farm Controller</span>
       <span>➔</span>
     </button>
+    <button class="btn" style="background:#065f46; border:1px solid #10b981; color:#fff; font-weight:800; width:100%; margin-top:8px; padding:10px; border-radius:10px; font-size:0.85rem; cursor:pointer;" onclick="toggleQrModal(); event.stopPropagation();">
+      📷 Show QR Code to Connect New Phone (20 KB)
+    </button>
   </div>
 </div>
 
@@ -758,7 +761,10 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   <div class="top-nav-bar">
     <button class="nav-back-btn" onclick="openView('hub')">🏠 Back to Hub</button>
     <div style="font-size:0.8rem; font-weight:700; color:#818cf8;">🖥️ PC Controller Mode</div>
-    <button class="nav-switch-btn" onclick="openView('mobile')">📱 Switch to Mobile Farm ➔</button>
+    <div style="display:flex; gap:6px;">
+      <button class="nav-switch-btn" style="background:#064e3b; border-color:#059669; color:#a7f3d0;" onclick="toggleQrModal()">📷 Add Phone (QR)</button>
+      <button class="nav-switch-btn" onclick="openView('mobile')">📱 Switch to Mobile Farm ➔</button>
+    </div>
   </div>
   <header>
     <div class="logo-box">
@@ -1463,7 +1469,10 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   <div class="top-nav-bar">
     <button class="nav-back-btn" onclick="openView('hub')">🏠 Back to Hub</button>
     <div style="font-size:0.8rem; font-weight:700; color:#34d399;">📱 Mobile Farm Mode</div>
-    <button class="nav-switch-btn nav-switch-btn-pc" onclick="openView('pc')">🖥️ Switch to PC ➔</button>
+    <div style="display:flex; gap:6px;">
+      <button class="nav-switch-btn" style="background:#064e3b; border-color:#059669; color:#a7f3d0;" onclick="toggleInlineQr()">📷 QR Code</button>
+      <button class="nav-switch-btn nav-switch-btn-pc" onclick="openView('pc')">🖥️ Switch to PC ➔</button>
+    </div>
   </div>
 
   <header>
@@ -1477,59 +1486,72 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     </div>
   </header>
 
-  <!-- Hub Overview & Setup Banner -->
-    <div class="card" style="border-color: rgba(16, 185, 129, 0.4);">
-      <div class="card-title" style="color: #34d399;">
-        <span>📱 100+ Phone Farm Hub & Multi-Device Control</span>
-        <button class="chip" style="background:#064e3b; border-color:#059669; color:#a7f3d0;" onclick="loadPhoneFarmDevices()">🔄 Refresh</button>
-      </div>
-      <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
-        Master Hotspot se connect hone wale tamam mobiles yahan auto-register hote hain. Har mobile me 20 KB ka agent background me 24/7 chalta hai aur port 9090 se direct control hota hai.
-      </div>
-
-      <!-- Quick Stats Badges -->
-      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 12px;">
-        <div class="chip" style="background:#0b1324; border-color:#1e293b; color:#34d399;">
-          🟢 Active: <strong id="pfOnlineCount" style="margin-left:4px;">0</strong> / <span id="pfTotalCount">0</span> Devices
+  <!-- Dedicated Big Onboarding & QR Card -->
+  <div class="card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 78, 59, 0.3)); border: 2px solid #10b981; border-radius: 14px; margin-bottom: 14px; padding: 14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+      <div>
+        <div style="font-size:1.05rem; font-weight:800; color:#34d399; display:flex; align-items:center; gap:8px;">
+          <span>📷 Add New Mobile to Farm</span>
+          <span style="font-size:0.7rem; background:#065f46; color:#a7f3d0; padding:2px 8px; border-radius:12px; font-weight:600;">20 KB Agent</span>
         </div>
-        <div class="chip" style="background:#0b1324; border-color:#1e293b; color:#38bdf8;">
-          🌐 Master Hub: <strong>{local_ip}:{port}</strong>
-        </div>
-        <div class="chip" style="background:#0b1324; border-color:#10b981; color:#a7f3d0; cursor:pointer;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">
-          📋 Copy Setup Link (for phones)
-        </div>
-        <div class="chip" style="background:#0b1324; border-color:#38bdf8; color:#38bdf8; cursor:pointer;" onclick="toggleQrModal()">
-          📷 Show QR Code to Scan
+        <div style="font-size:0.78rem; color:#cbd5e1; margin-top:4px;">
+          Kisi bhi naye mobile ka normal <b>Camera</b> khol kar is QR code ko scan karein aur 1-Click me install karein:
         </div>
       </div>
-
-      <!-- QR Code Modal Popup -->
-      <div id="pfQrModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
-        <div style="background:#131c2e; border:1.5px solid #10b981; border-radius:16px; max-width:360px; width:100%; padding:20px; text-align:center; color:#fff; box-shadow:0 8px 32px rgba(16,185,129,0.3);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <strong style="font-size:1rem; color:#34d399;">📷 Scan to Install Agent (20 KB)</strong>
-            <button onclick="toggleQrModal()" style="background:none; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
-          </div>
-          <p style="font-size:0.78rem; color:#94a3b8; margin-bottom:14px; line-height:1.4;">
-            Kisi bhi phone ka normal <b>Camera</b> khol kar is QR code par point karein -> Screen par link tap karein aur install karein!
-          </p>
-          <div style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px;">
-            <img src="/api/setup_qr" style="width:180px; height:180px; display:block;" alt="Setup QR Code">
-          </div>
-          <div style="font-size:0.75rem; color:#38bdf8; font-family:monospace; margin-bottom:14px;">
-            http://{local_ip}:{port}/setup
-          </div>
-          <button class="btn" style="background:#1e293b; border-color:#334155; width:100%; padding:10px;" onclick="toggleQrModal()">Close</button>
-        </div>
-      </div>
-
-      <!-- Auto Scan & Manual Add Toolbar -->
-      <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
-        <input type="text" id="pfManualIp" class="input-bar" style="flex:1; min-width:140px;" placeholder="Add IP (e.g. 192.168.43.45)...">
-        <button class="btn" style="background:#1e293b; border-color:#334155; padding:8px 12px; font-size:0.78rem;" onclick="addPhoneFarmManualIp()">➕ Add IP</button>
-        <button class="btn" id="pfScanBtn" style="background:#065f46; border-color:#059669; color:#fff; padding:8px 12px; font-size:0.78rem; font-weight:700;" onclick="scanPhoneFarmSubnet()">🔍 Auto-Scan Subnet</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" style="background:#10b981; border:1px solid #059669; color:#0f172a; font-weight:800; padding:9px 16px; font-size:0.85rem; border-radius:8px; cursor:pointer;" onclick="toggleInlineQr()">
+          📷 Show / Hide QR Code
+        </button>
+        <button class="btn" style="background:#1e293b; border:1px solid #334155; color:#38bdf8; font-weight:700; padding:9px 14px; font-size:0.82rem; border-radius:8px; cursor:pointer;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">
+          📋 Copy Setup Link
+        </button>
       </div>
     </div>
+
+    <!-- Inline QR Code Display Box (ALWAYS VISIBLE BY DEFAULT) -->
+    <div id="pfInlineQrBox" style="background:#0b1324; border:1px solid rgba(16,185,129,0.35); border-radius:12px; padding:14px; text-align:center; margin-top:8px;">
+      <div style="background:#fff; padding:8px; border-radius:10px; display:inline-block; margin-bottom:10px; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+        <img src="/api/setup_qr" style="width:190px; height:190px; display:block;" alt="Setup QR Code">
+      </div>
+      <div style="font-size:0.84rem; color:#a7f3d0; font-weight:700; margin-bottom:4px;">
+        👉 Scan with Camera or Visit Link on Phone:
+      </div>
+      <a href="http://{local_ip}:{port}/setup" target="_blank" style="font-size:0.85rem; color:#38bdf8; font-family:monospace; word-break:break-all; text-decoration:underline;">
+        http://{local_ip}:{port}/setup
+      </a>
+    </div>
+  </div>
+
+  <!-- Hub Overview & Setup Banner -->
+  <div class="card" style="border-color: rgba(16, 185, 129, 0.4);">
+    <div class="card-title" style="color: #34d399;">
+      <span>📱 100+ Phone Farm Hub & Multi-Device Control</span>
+      <button class="chip" style="background:#064e3b; border-color:#059669; color:#a7f3d0;" onclick="loadPhoneFarmDevices()">🔄 Refresh</button>
+    </div>
+    <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
+      Master Hotspot se connect hone wale tamam mobiles yahan auto-register hote hain. Har mobile me 20 KB ka agent background me 24/7 chalta hai aur port 9090 se direct control hota hai.
+    </div>
+
+    <!-- Quick Stats Badges -->
+    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 12px;">
+      <div class="chip" style="background:#0b1324; border-color:#1e293b; color:#34d399;">
+        🟢 Active: <strong id="pfOnlineCount" style="margin-left:4px;">0</strong> / <span id="pfTotalCount">0</span> Devices
+      </div>
+      <div class="chip" style="background:#0b1324; border-color:#1e293b; color:#38bdf8;">
+        🌐 Master Hub: <strong>{local_ip}:{port}</strong>
+      </div>
+      <div class="chip" style="background:#0b1324; border-color:#10b981; color:#a7f3d0; cursor:pointer;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">
+        📋 Copy Setup Link
+      </div>
+    </div>
+
+    <!-- Auto Scan & Manual Add Toolbar -->
+    <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+      <input type="text" id="pfManualIp" class="input-bar" style="flex:1; min-width:140px;" placeholder="Add IP (e.g. 192.168.43.45)...">
+      <button class="btn" style="background:#1e293b; border-color:#334155; padding:8px 12px; font-size:0.78rem;" onclick="addPhoneFarmManualIp()">➕ Add IP</button>
+      <button class="btn" id="pfScanBtn" style="background:#065f46; border-color:#059669; color:#fff; padding:8px 12px; font-size:0.78rem; font-weight:700;" onclick="scanPhoneFarmSubnet()">🔍 Auto-Scan Subnet</button>
+    </div>
+  </div>
 
     <!-- Master Remote Control Panel -->
     <div class="card" style="border-color: rgba(56, 189, 248, 0.35);">
@@ -1616,6 +1638,32 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       </div>
     </div>
   </div><!-- END VIEW-MOBILE -->
+
+  <!-- Universal Root-Level QR Code Modal (accessible from any view) -->
+  <div id="pfQrModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+    <div style="background:#131c2e; border:2px solid #10b981; border-radius:18px; max-width:380px; width:100%; padding:22px; text-align:center; color:#fff; box-shadow:0 12px 40px rgba(16,185,129,0.35);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <strong style="font-size:1.05rem; color:#34d399;">📷 Scan to Connect New Phone</strong>
+        <button onclick="toggleQrModal()" style="background:none; border:none; color:#94a3b8; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+      <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:14px; line-height:1.4;">
+        Kisi bhi naye mobile ka normal <b>Camera</b> khol kar is QR code par point karein aur 1-Click me 20 KB APK install karein!
+      </p>
+      <div style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px; box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <img src="/api/setup_qr" style="width:190px; height:190px; display:block;" alt="Setup QR Code">
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">Direct Browser Setup Link:</div>
+        <a href="http://{local_ip}:{port}/setup" target="_blank" style="font-size:0.82rem; color:#38bdf8; font-family:monospace; word-break:break-all; text-decoration:underline;">
+          http://{local_ip}:{port}/setup
+        </a>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" style="background:#10b981; border:1px solid #059669; color:#0f172a; font-weight:800; flex:1; padding:10px;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">📋 Copy Link</button>
+        <button class="btn" style="background:#1e293b; border:1px solid #334155; color:#94a3b8; flex:1; padding:10px;" onclick="toggleQrModal()">Close</button>
+      </div>
+    </div>
+  </div>
 
 <script>
   let ws = null;
@@ -3171,6 +3219,12 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const m = document.getElementById("pfQrModal");
     if (!m) return;
     m.style.display = m.style.display === "flex" ? "none" : "flex";
+  }}
+
+  function toggleInlineQr() {{
+    const box = document.getElementById("pfInlineQrBox");
+    if (!box) return;
+    box.style.display = (box.style.display === "none") ? "block" : "none";
   }}
 
   // -------------------------------------------------------------
