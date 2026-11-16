@@ -1498,6 +1498,29 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         <div class="chip" style="background:#0b1324; border-color:#10b981; color:#a7f3d0; cursor:pointer;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">
           📋 Copy Setup Link (for phones)
         </div>
+        <div class="chip" style="background:#0b1324; border-color:#38bdf8; color:#38bdf8; cursor:pointer;" onclick="toggleQrModal()">
+          📷 Show QR Code to Scan
+        </div>
+      </div>
+
+      <!-- QR Code Modal Popup -->
+      <div id="pfQrModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+        <div style="background:#131c2e; border:1.5px solid #10b981; border-radius:16px; max-width:360px; width:100%; padding:20px; text-align:center; color:#fff; box-shadow:0 8px 32px rgba(16,185,129,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <strong style="font-size:1rem; color:#34d399;">📷 Scan to Install Agent (20 KB)</strong>
+            <button onclick="toggleQrModal()" style="background:none; border:none; color:#94a3b8; font-size:1.4rem; cursor:pointer;">&times;</button>
+          </div>
+          <p style="font-size:0.78rem; color:#94a3b8; margin-bottom:14px; line-height:1.4;">
+            Kisi bhi phone ka normal <b>Camera</b> khol kar is QR code par point karein -> Screen par link tap karein aur install karein!
+          </p>
+          <div style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px;">
+            <img src="/api/setup_qr" style="width:180px; height:180px; display:block;" alt="Setup QR Code">
+          </div>
+          <div style="font-size:0.75rem; color:#38bdf8; font-family:monospace; margin-bottom:14px;">
+            http://{local_ip}:{port}/setup
+          </div>
+          <button class="btn" style="background:#1e293b; border-color:#334155; width:100%; padding:10px;" onclick="toggleQrModal()">Close</button>
+        </div>
       </div>
 
       <!-- Auto Scan & Manual Add Toolbar -->
@@ -3124,6 +3147,12 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const x = parseInt(document.getElementById("pfTapX").value || "500", 10);
     const y = parseInt(document.getElementById("pfTapY").value || "1000", 10);
     sendPhoneFarmAction("tap", {{ x: x, y: y }});
+  }}
+
+  function toggleQrModal() {{
+    const m = document.getElementById("pfQrModal");
+    if (!m) return;
+    m.style.display = m.style.display === "flex" ? "none" : "flex";
   }}
 
   connectWebSocket();

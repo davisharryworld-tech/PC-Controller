@@ -195,6 +195,12 @@ def get_setup_html(client_ip: str, local_ip: str, port: int) -> str:
       <div class="feat">🌐 Stateless Port 9090</div>
     </div>
 
+    <!-- Offline QR Code for direct camera scan -->
+    <div style="background:#0b1120; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:18px;">
+      <div style="font-size:0.75rem; color:var(--muted); margin-bottom:8px;">Kisi aur phone k Camera se scan karke download karein:</div>
+      <img src="/api/setup_qr" style="width:130px; height:130px; border-radius:8px; background:#fff; padding:6px; display:block; margin:0 auto;" alt="Setup QR">
+    </div>
+
     <div class="steps">
       <div class="step-item">
         <div class="step-num">1</div>

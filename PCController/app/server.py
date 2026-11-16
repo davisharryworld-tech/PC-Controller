@@ -101,6 +101,7 @@ async def device_access_guard(request: Request, call_next):
         "/hotspot-detect.html",
         "/connecttest.txt",
         "/api/phones/register",
+        "/api/setup_qr",
         "/static/",
     )
     if any(request.url.path == p or request.url.path.startswith(p) for p in public_paths):
@@ -265,6 +266,25 @@ async def serve_setup_endpoint(request: Request):
             port=settings.PORT
         )
     )
+
+
+@app.get("/api/setup_qr")
+async def get_setup_qr(request: Request):
+    """Generates an offline QR code image pointing to the 20 KB APK setup URL."""
+    try:
+        import qrcode
+        host_header = request.headers.get("host") or f"{settings.LOCAL_IP}:{settings.PORT}"
+        setup_url = f"http://{host_header}/setup"
+
+        qr = qrcode.QRCode(box_size=8, border=2)
+        qr.add_data(setup_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return Response(content=buf.getvalue(), media_type="image/png")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.post("/api/phones/register")
