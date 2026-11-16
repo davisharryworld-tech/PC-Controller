@@ -352,22 +352,27 @@ async def get_registered_phones():
 
 @app.post("/api/phones/scan")
 async def scan_phone_subnet(request: Request):
-    """Scans local subnet for any phones running AgentAccessibilityService on port 9090."""
+    """Scans local subnets for any phones running AgentAccessibilityService on port 9090."""
     try:
         data = await request.json()
-        subnet_prefix = data.get("subnet", "")
+        custom_subnet = data.get("subnet", "").strip()
     except Exception:
-        subnet_prefix = ""
+        custom_subnet = ""
 
-    if not subnet_prefix:
+    candidate_subnets = []
+    if custom_subnet:
+        candidate_subnets.append(custom_subnet)
+    else:
         parts = settings.LOCAL_IP.split(".")
         if len(parts) == 4:
-            subnet_prefix = f"{parts[0]}.{parts[1]}.{parts[2]}"
-        else:
-            subnet_prefix = "192.168.43"
+            candidate_subnets.append(f"{parts[0]}.{parts[1]}.{parts[2]}")
+        # Always include mobile hotspot default subnets (Android, iOS, Windows Hotspots)
+        for s in ("192.168.43", "192.168.50", "192.168.137", "172.20.10"):
+            if s not in candidate_subnets:
+                candidate_subnets.append(s)
 
     async def probe_ip(ip: str):
-        res = await send_phone_command(ip, port=9090, payload={"action": "info"}, timeout=0.4)
+        res = await send_phone_command(ip, port=9090, payload={"action": "info"}, timeout=0.35)
         if res.get("success"):
             registered_phones[ip] = {
                 "ip": ip,
@@ -383,14 +388,14 @@ async def scan_phone_subnet(request: Request):
             return ip
         return None
 
-    tasks = [probe_ip(f"{subnet_prefix}.{i}") for i in range(1, 255)]
+    tasks = [probe_ip(f"{sub}.{i}") for sub in candidate_subnets for i in range(1, 255)]
     found_results = await asyncio.gather(*tasks, return_exceptions=True)
     found_ips = [r for r in found_results if isinstance(r, str)]
 
-    logger.info(f"Subnet scan ({subnet_prefix}.0/24) complete. Discovered {len(found_ips)} phones: {found_ips}")
+    logger.info(f"Subnet scan across {candidate_subnets} complete. Discovered {len(found_ips)} phones: {found_ips}")
     return {
         "success": True,
-        "subnet": f"{subnet_prefix}.0/24",
+        "subnets": candidate_subnets,
         "discovered": len(found_ips),
         "phones": [registered_phones[ip] for ip in found_ips]
     }
