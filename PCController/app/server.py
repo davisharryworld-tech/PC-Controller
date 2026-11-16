@@ -5,6 +5,7 @@ import os
 import platform
 import shutil
 import socket
+from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -269,12 +270,27 @@ async def serve_setup_endpoint(request: Request):
 
 
 @app.get("/api/setup_qr")
-async def get_setup_qr(request: Request):
-    """Generates an offline QR code image pointing to the 20 KB APK setup URL."""
+async def get_setup_qr(request: Request, mode: Optional[str] = None):
+    """Generates an offline/cloud QR code pointing to 20 KB APK download."""
     try:
         import qrcode
-        host_header = request.headers.get("host") or f"{settings.LOCAL_IP}:{settings.PORT}"
-        setup_url = f"http://{host_header}/setup"
+        cloud_url = "https://raw.githubusercontent.com/davisharryworld-tech/PC-Controller/main/PCController/static/phone_agent.apk"
+        host_header = request.headers.get("host") or ""
+
+        if mode == "local":
+            setup_url = f"http://{settings.LOCAL_IP}:{settings.PORT}/setup"
+        elif mode == "tailscale":
+            ts_ip = settings.TAILSCALE_IP or settings.LOCAL_IP
+            setup_url = f"http://{ts_ip}:{settings.PORT}/setup"
+        elif mode == "cloud":
+            setup_url = cloud_url
+        else:
+            # Default: If viewer host is a Tailscale IP (starts with 100.), client phones CANNOT reach it!
+            # So automatically default to Cloud URL which works universally on all phones.
+            if host_header.startswith("100.") or not host_header:
+                setup_url = cloud_url
+            else:
+                setup_url = f"http://{host_header}/setup"
 
         qr = qrcode.QRCode(box_size=8, border=2)
         qr.add_data(setup_url)

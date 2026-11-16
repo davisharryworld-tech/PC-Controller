@@ -1510,15 +1510,28 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
 
     <!-- Inline QR Code Display Box (ALWAYS VISIBLE BY DEFAULT) -->
     <div id="pfInlineQrBox" style="background:#0b1324; border:1px solid rgba(16,185,129,0.35); border-radius:12px; padding:14px; text-align:center; margin-top:8px;">
+      <!-- Mode Tabs (Cloud vs Local) -->
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px;">
+        <button id="pfQrBtnCloudInline" class="btn" style="background:#10b981; border:1px solid #059669; color:#0f172a; font-weight:800; padding:6px 14px; font-size:0.78rem; border-radius:8px; cursor:pointer;" onclick="setQrMode('cloud')">
+          🌐 Universal Cloud (Recommended)
+        </button>
+        <button id="pfQrBtnLocalInline" class="btn" style="background:#1e293b; border:1px solid #334155; color:#94a3b8; font-weight:700; padding:6px 14px; font-size:0.78rem; border-radius:8px; cursor:pointer;" onclick="setQrMode('local')">
+          📶 Local Wi-Fi
+        </button>
+      </div>
+
       <div style="background:#fff; padding:8px; border-radius:10px; display:inline-block; margin-bottom:10px; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
-        <img src="/api/setup_qr" style="width:190px; height:190px; display:block;" alt="Setup QR Code">
+        <img id="pfQrImgInline" src="/api/setup_qr?mode=cloud" style="width:190px; height:190px; display:block;" alt="Setup QR Code">
       </div>
       <div style="font-size:0.84rem; color:#a7f3d0; font-weight:700; margin-bottom:4px;">
-        👉 Scan with Camera or Visit Link on Phone:
+        👉 Scan with Phone Camera -> 1-Click Download (20 KB):
       </div>
-      <a href="http://{local_ip}:{port}/setup" target="_blank" style="font-size:0.85rem; color:#38bdf8; font-family:monospace; word-break:break-all; text-decoration:underline;">
-        http://{local_ip}:{port}/setup
+      <a id="pfQrLinkInline" href="https://raw.githubusercontent.com/davisharryworld-tech/PC-Controller/main/PCController/static/phone_agent.apk" target="_blank" style="font-size:0.78rem; color:#38bdf8; font-family:monospace; word-break:break-all; text-decoration:underline;">
+        https://raw.githubusercontent.com/.../phone_agent.apk
       </a>
+      <div style="font-size:0.74rem; color:#94a3b8; margin-top:6px;">
+        ⚡ Har mobile par 100% chalega (bina kisi VPN / Tailscale ke)!
+      </div>
     </div>
   </div>
 
@@ -1646,20 +1659,27 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         <strong style="font-size:1.05rem; color:#34d399;">📷 Scan to Connect New Phone</strong>
         <button onclick="toggleQrModal()" style="background:none; border:none; color:#94a3b8; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
       </div>
-      <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:14px; line-height:1.4;">
-        Kisi bhi naye mobile ka normal <b>Camera</b> khol kar is QR code par point karein aur 1-Click me 20 KB APK install karein!
-      </p>
+      <!-- Mode Tabs (Cloud vs Local) -->
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px;">
+        <button id="pfQrBtnCloudModal" class="btn" style="background:#10b981; border:1px solid #059669; color:#0f172a; font-weight:800; padding:6px 14px; font-size:0.78rem; border-radius:8px; cursor:pointer;" onclick="setQrMode('cloud')">
+          🌐 Universal Cloud (Recommended)
+        </button>
+        <button id="pfQrBtnLocalModal" class="btn" style="background:#1e293b; border:1px solid #334155; color:#94a3b8; font-weight:700; padding:6px 14px; font-size:0.78rem; border-radius:8px; cursor:pointer;" onclick="setQrMode('local')">
+          📶 Local Wi-Fi
+        </button>
+      </div>
+
       <div style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px; box-shadow:0 4px 16px rgba(0,0,0,0.4);">
-        <img src="/api/setup_qr" style="width:190px; height:190px; display:block;" alt="Setup QR Code">
+        <img id="pfQrImgModal" src="/api/setup_qr?mode=cloud" style="width:190px; height:190px; display:block;" alt="Setup QR Code">
       </div>
       <div style="margin-bottom:14px;">
-        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">Direct Browser Setup Link:</div>
-        <a href="http://{local_ip}:{port}/setup" target="_blank" style="font-size:0.82rem; color:#38bdf8; font-family:monospace; word-break:break-all; text-decoration:underline;">
-          http://{local_ip}:{port}/setup
+        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:2px;">Direct Download Link:</div>
+        <a id="pfQrLinkModal" href="https://raw.githubusercontent.com/davisharryworld-tech/PC-Controller/main/PCController/static/phone_agent.apk" target="_blank" style="font-size:0.78rem; color:#38bdf8; font-family:monospace; word-break:break-all; text-decoration:underline;">
+          https://raw.githubusercontent.com/.../phone_agent.apk
         </a>
       </div>
       <div style="display:flex; gap:8px;">
-        <button class="btn" style="background:#10b981; border:1px solid #059669; color:#0f172a; font-weight:800; flex:1; padding:10px;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">📋 Copy Link</button>
+        <button class="btn" style="background:#10b981; border:1px solid #059669; color:#0f172a; font-weight:800; flex:1; padding:10px;" onclick="copyCurrentQrLink()">📋 Copy Link</button>
         <button class="btn" style="background:#1e293b; border:1px solid #334155; color:#94a3b8; flex:1; padding:10px;" onclick="toggleQrModal()">Close</button>
       </div>
     </div>
@@ -3225,6 +3245,56 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const box = document.getElementById("pfInlineQrBox");
     if (!box) return;
     box.style.display = (box.style.display === "none") ? "block" : "none";
+  }}
+
+  const CLOUD_APK_URL = "https://raw.githubusercontent.com/davisharryworld-tech/PC-Controller/main/PCController/static/phone_agent.apk";
+  const LOCAL_SETUP_URL = "http://{local_ip}:{port}/setup";
+  let currentQrMode = "cloud";
+
+  function setQrMode(mode) {{
+    currentQrMode = mode;
+    const isCloud = mode === "cloud";
+    const url = isCloud ? CLOUD_APK_URL : LOCAL_SETUP_URL;
+    const qrSrc = isCloud ? "/api/setup_qr?mode=cloud" : "/api/setup_qr?mode=local";
+
+    const imgInline = document.getElementById("pfQrImgInline");
+    const linkInline = document.getElementById("pfQrLinkInline");
+    const btnCloudInline = document.getElementById("pfQrBtnCloudInline");
+    const btnLocalInline = document.getElementById("pfQrBtnLocalInline");
+
+    if (imgInline) imgInline.src = qrSrc;
+    if (linkInline) {{
+      linkInline.href = url;
+      linkInline.textContent = isCloud ? "https://raw.githubusercontent.com/.../phone_agent.apk" : url;
+    }}
+    if (btnCloudInline && btnLocalInline) {{
+      btnCloudInline.style.background = isCloud ? "#10b981" : "#1e293b";
+      btnCloudInline.style.color = isCloud ? "#0f172a" : "#94a3b8";
+      btnLocalInline.style.background = !isCloud ? "#10b981" : "#1e293b";
+      btnLocalInline.style.color = !isCloud ? "#0f172a" : "#94a3b8";
+    }}
+
+    const imgModal = document.getElementById("pfQrImgModal");
+    const linkModal = document.getElementById("pfQrLinkModal");
+    const btnCloudModal = document.getElementById("pfQrBtnCloudModal");
+    const btnLocalModal = document.getElementById("pfQrBtnLocalModal");
+
+    if (imgModal) imgModal.src = qrSrc;
+    if (linkModal) {{
+      linkModal.href = url;
+      linkModal.textContent = isCloud ? "https://raw.githubusercontent.com/.../phone_agent.apk" : url;
+    }}
+    if (btnCloudModal && btnLocalModal) {{
+      btnCloudModal.style.background = isCloud ? "#10b981" : "#1e293b";
+      btnCloudModal.style.color = isCloud ? "#0f172a" : "#94a3b8";
+      btnLocalModal.style.background = !isCloud ? "#10b981" : "#1e293b";
+      btnLocalModal.style.color = !isCloud ? "#0f172a" : "#94a3b8";
+    }}
+  }}
+
+  function copyCurrentQrLink() {{
+    const url = currentQrMode === "cloud" ? CLOUD_APK_URL : LOCAL_SETUP_URL;
+    copyText(url, "Setup link copied!");
   }}
 
   // -------------------------------------------------------------
