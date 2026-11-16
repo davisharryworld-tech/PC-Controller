@@ -130,8 +130,8 @@ async def device_access_guard(request: Request, call_next):
     if token == settings.AUTHORIZED_DEVICE_TOKEN:
         return await call_next(request)
 
-    # If opening root URL in browser without token, show Device Lock screen
-    if request.url.path == "/" and request.method == "GET":
+    # If opening root URL or dashboards in browser without token, show Device Lock screen
+    if request.url.path in ("/", "/pc", "/mobile") and request.method == "GET":
         logger.info(f"Serving device lock pairing screen to unrecognized client: {client_ip}")
         return HTMLResponse(
             status_code=403,
@@ -149,6 +149,7 @@ async def device_access_guard(request: Request, call_next):
 async def serve_dashboard():
     """
     Serves the interactive mobile & desktop web remote control dashboard.
+    Default view is the Master Hub (2 options: Control PC or Control Mobile).
     """
     return HTMLResponse(
         content=get_dashboard_html(
@@ -158,6 +159,34 @@ async def serve_dashboard():
             project_name=settings.PROJECT_NAME,
             authorized_token=settings.AUTHORIZED_DEVICE_TOKEN,
         )
+    )
+
+
+@app.get("/pc", response_class=HTMLResponse)
+async def serve_pc_dashboard():
+    """Direct shortcut to PC Controller mode."""
+    return HTMLResponse(
+        content=get_dashboard_html(
+            local_ip=settings.LOCAL_IP,
+            tailscale_ip=settings.TAILSCALE_IP,
+            port=settings.PORT,
+            project_name=settings.PROJECT_NAME,
+            authorized_token=settings.AUTHORIZED_DEVICE_TOKEN,
+        ).replace("initViewRouting();", "openView('pc');")
+    )
+
+
+@app.get("/mobile", response_class=HTMLResponse)
+async def serve_mobile_dashboard():
+    """Direct shortcut to 100+ Phone Farm mode."""
+    return HTMLResponse(
+        content=get_dashboard_html(
+            local_ip=settings.LOCAL_IP,
+            tailscale_ip=settings.TAILSCALE_IP,
+            port=settings.PORT,
+            project_name=settings.PROJECT_NAME,
+            authorized_token=settings.AUTHORIZED_DEVICE_TOKEN,
+        ).replace("initViewRouting();", "openView('mobile');")
     )
 
 

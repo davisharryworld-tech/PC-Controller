@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 $SdkPath = "C:\Users\Dell\AppData\Local\Android\Sdk"
 $BuildTools = "$SdkPath\build-tools\35.0.0"

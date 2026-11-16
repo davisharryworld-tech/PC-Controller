@@ -513,13 +513,253 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       border-radius: 8px;
       font-size: 0.82rem;
     }}
+    /* Master Selection Hub (PC vs Mobile) */
+    .hub-container {{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 92vh;
+      padding: 18px 14px;
+      box-sizing: border-box;
+      max-width: 480px;
+      margin: 0 auto;
+    }}
+    .hub-header {{
+      text-align: center;
+      margin-bottom: 22px;
+      width: 100%;
+    }}
+    .hub-icon-badge {{
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.25), rgba(16, 185, 129, 0.25));
+      border: 1.5px solid #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin: 0 auto 10px;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+    }}
+    .hub-title {{
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }}
+    .hub-subtitle {{
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }}
+    .hub-card {{
+      width: 100%;
+      border-radius: 16px;
+      padding: 18px 16px;
+      margin-bottom: 14px;
+      box-sizing: border-box;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      position: relative;
+    }}
+    .hub-card:active {{
+      transform: scale(0.98);
+    }}
+    .hub-card-pc {{
+      border: 1.5px solid #4f46e5;
+      background: linear-gradient(145deg, #131b2e 0%, #0d1322 100%);
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.2);
+    }}
+    .hub-card-mobile {{
+      border: 1.5px solid #059669;
+      background: linear-gradient(145deg, #0e1e24 0%, #091519 100%);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
+    }}
+    .hub-card-top {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }}
+    .hub-card-icon {{
+      font-size: 2rem;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+    }}
+    .hub-card-title {{
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+    }}
+    .hub-card-desc {{
+      font-size: 0.78rem;
+      color: #94a3b8;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }}
+    .hub-card-tags {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 12px;
+    }}
+    .hub-card-btn {{
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fff;
+    }}
+    .hub-card-btn-pc {{
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    }}
+    .hub-card-btn-mobile {{
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }}
+    .top-nav-bar {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 8px 10px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+    }}
+    .nav-back-btn {{
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }}
+    .nav-back-btn:active {{
+      background: #334155;
+      color: #fff;
+    }}
+    .nav-switch-btn {{
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #34d399;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }}
+    .nav-switch-btn:active {{
+      filter: brightness(1.2);
+    }}
+    .nav-switch-btn-pc {{
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid #6366f1;
+      color: #a5b4fc;
+    }}
   </style>
 </head>
 <body>
 
 <div id="toast" class="toast">Action Executed</div>
 
-<div class="container">
+<!-- ======================================================== -->
+<!-- VIEW 1: MASTER SELECTION HUB (Control PC vs Mobile)      -->
+<!-- ======================================================== -->
+<div id="view-hub" class="hub-container">
+  <div class="hub-header">
+    <div class="hub-icon-badge">⚡</div>
+    <div class="hub-title">Personal AI Command Center</div>
+    <div class="hub-subtitle">Kisko control karna chahte hain? Option select karein:</div>
+    <div style="font-size:0.75rem; color:#64748b; margin-top:6px;">
+      🌐 Master Hub Server: <strong style="color:#38bdf8;">{local_ip}:{port}</strong>
+    </div>
+  </div>
+
+  <!-- Card 1: Control PC -->
+  <div class="hub-card hub-card-pc" onclick="openView('pc')">
+    <div class="hub-card-top">
+      <div class="hub-card-icon" style="color:#818cf8;">🖥️</div>
+      <div>
+        <div class="hub-card-title">Control PC</div>
+        <div style="font-size:0.75rem; color:#a5b4fc;">Master Computer Remote Control</div>
+      </div>
+    </div>
+    <div class="hub-card-desc">
+      Apne Windows PC ko mobile se mukammal control karein. Voice control, ultra-fast screen streaming, typing, files aur YouTube studio chalayein.
+    </div>
+    <div class="hub-card-tags">
+      <span class="chip" style="background:#1e1b4b; border-color:#3730a3; color:#c7d2fe;">⚡ Quick Power & Sleep</span>
+      <span class="chip" style="background:#1e1b4b; border-color:#3730a3; color:#c7d2fe;">🎙️ AI Voice Command</span>
+      <span class="chip" style="background:#1e1b4b; border-color:#3730a3; color:#c7d2fe;">📺 Live Screen</span>
+      <span class="chip" style="background:#1e1b4b; border-color:#3730a3; color:#c7d2fe;">🤖 Antigravity Bot</span>
+      <span class="chip" style="background:#1e1b4b; border-color:#3730a3; color:#c7d2fe;">💬 WhatsApp</span>
+    </div>
+    <button class="hub-card-btn hub-card-btn-pc" onclick="openView('pc'); event.stopPropagation();">
+      <span>🖥️ Open PC Controller</span>
+      <span>➔</span>
+    </button>
+  </div>
+
+  <!-- Card 2: Control Mobile -->
+  <div class="hub-card hub-card-mobile" onclick="openView('mobile')">
+    <div class="hub-card-top">
+      <div class="hub-card-icon" style="color:#34d399;">📱</div>
+      <div>
+        <div class="hub-card-title">Control Mobile (Phone Farm)</div>
+        <div style="font-size:0.75rem; color:#6ee7b7;">100+ Physical Android Devices Hub</div>
+      </div>
+    </div>
+    <div class="hub-card-desc">
+      Hotspot se connect hone wale 100+ physical mobiles ko aik sath control karein. 20 KB agent, universal broadcast gestures, subnet scanner aur sync actions.
+    </div>
+    <div class="hub-card-tags">
+      <span class="chip" style="background:#064e3b; border-color:#047857; color:#a7f3d0;">🔀 Broadcast to All Phones</span>
+      <span class="chip" style="background:#064e3b; border-color:#047857; color:#a7f3d0;">🎮 Touch, Swipe, Home, Back</span>
+      <span class="chip" style="background:#064e3b; border-color:#047857; color:#a7f3d0;">🔍 0.5s Auto-Scan Subnet</span>
+      <span class="chip" style="background:#064e3b; border-color:#047857; color:#a7f3d0;">⚡ 20 KB Ultra Tiny Agent</span>
+      <span class="chip" style="background:#064e3b; border-color:#047857; color:#a7f3d0;">🔋 Live Battery & Monitor</span>
+    </div>
+    <button class="hub-card-btn hub-card-btn-mobile" onclick="openView('mobile'); event.stopPropagation();">
+      <span>📱 Open Mobile Farm Controller</span>
+      <span>➔</span>
+    </button>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- VIEW 2: PC CONTROLLER DASHBOARD                         -->
+<!-- ======================================================== -->
+<div id="view-pc" class="container" style="display:none;">
+  <!-- Top Switch Bar -->
+  <div class="top-nav-bar">
+    <button class="nav-back-btn" onclick="openView('hub')">🏠 Back to Hub</button>
+    <div style="font-size:0.8rem; font-weight:700; color:#818cf8;">🖥️ PC Controller Mode</div>
+    <button class="nav-switch-btn" onclick="openView('mobile')">📱 Switch to Mobile Farm ➔</button>
+  </div>
   <header>
     <div class="logo-box">
       <h1>🎮 Master PC Controller</h1>
@@ -1213,10 +1453,31 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       </button>
     </div>
   </div>
+</div><!-- END VIEW-PC -->
 
-  <!-- TAB: PHONE FARM (100+ PHONES) -->
-  <div id="tab-phonefarm" class="tab-content">
-    <!-- Hub Overview & Setup Banner -->
+<!-- ======================================================== -->
+<!-- VIEW 3: MOBILE FARM CONTROLLER DASHBOARD                -->
+<!-- ======================================================== -->
+<div id="view-mobile" class="container" style="display:none;">
+  <!-- Top Switch Bar -->
+  <div class="top-nav-bar">
+    <button class="nav-back-btn" onclick="openView('hub')">🏠 Back to Hub</button>
+    <div style="font-size:0.8rem; font-weight:700; color:#34d399;">📱 Mobile Farm Mode</div>
+    <button class="nav-switch-btn nav-switch-btn-pc" onclick="openView('pc')">🖥️ Switch to PC ➔</button>
+  </div>
+
+  <header>
+    <div class="logo-box">
+      <h1>📱 Mobile Farm Controller</h1>
+      <span style="font-size:0.75rem; color:#94a3b8;">100+ Android Devices Hub • Port 9090</span>
+    </div>
+    <div class="status-badge" style="background:rgba(16,185,129,0.15); border-color:#10b981; color:#34d399; cursor:pointer;" onclick="loadPhoneFarmDevices()" title="Refresh farm devices">
+      <span class="dot"></span>
+      <span>Farm Active</span>
+    </div>
+  </header>
+
+  <!-- Hub Overview & Setup Banner -->
     <div class="card" style="border-color: rgba(16, 185, 129, 0.4);">
       <div class="card-title" style="color: #34d399;">
         <span>📱 100+ Phone Farm Hub & Multi-Device Control</span>
@@ -1331,8 +1592,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
         <div class="log-entry">[Ready] Phone Farm Controller initialized on port 9090.</div>
       </div>
     </div>
-  </div>
-</div>
+  </div><!-- END VIEW-MOBILE -->
 
 <script>
   let ws = null;
@@ -1366,7 +1626,61 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     el.prepend(entry);
   }}
 
+  // -------------------------------------------------------------
+  // Master View Switcher (Landing Hub vs PC Controller vs Mobile)
+  // -------------------------------------------------------------
+  function openView(mode) {{
+    const hub = document.getElementById("view-hub");
+    const pc = document.getElementById("view-pc");
+    const mob = document.getElementById("view-mobile");
+
+    if (mode === "pc") {{
+      if (hub) hub.style.display = "none";
+      if (mob) mob.style.display = "none";
+      if (pc) pc.style.display = "block";
+      try {{ history.replaceState(null, "", "#pc"); }} catch(e) {{}}
+    }} else if (mode === "mobile") {{
+      if (hub) hub.style.display = "none";
+      if (pc) pc.style.display = "none";
+      if (mob) mob.style.display = "block";
+      try {{ history.replaceState(null, "", "#mobile"); }} catch(e) {{}}
+      loadPhoneFarmDevices();
+    }} else {{
+      // default: hub
+      if (pc) pc.style.display = "none";
+      if (mob) mob.style.display = "none";
+      if (hub) hub.style.display = "flex";
+      try {{ history.replaceState(null, "", "#hub"); }} catch(e) {{}}
+    }}
+    window.scrollTo(0, 0);
+  }}
+
+  function initViewRouting() {{
+    const hash = (location.hash || "").replace("#", "").toLowerCase();
+    const urlParams = new URLSearchParams(window.location.search);
+    const qMode = (urlParams.get("mode") || "").toLowerCase();
+
+    if (qMode === "pc" || hash === "pc") {{
+      openView("pc");
+    }} else if (qMode === "mobile" || hash === "mobile") {{
+      openView("mobile");
+    }} else {{
+      openView("hub");
+    }}
+  }}
+
+  window.addEventListener("hashchange", () => {{
+    const hash = (location.hash || "").replace("#", "").toLowerCase();
+    if (hash === "pc") openView("pc");
+    else if (hash === "mobile") openView("mobile");
+    else openView("hub");
+  }});
+
   function switchTab(tabId, el) {{
+    if (tabId === "phonefarm") {{
+      openView("mobile");
+      return;
+    }}
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
     document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
     if (el) {{
@@ -1382,7 +1696,6 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     if (tabId === "whatsapp") loadContacts();
     if (tabId === "files") loadPCFilesWeb();
     if (tabId === "quick") loadWolInfoWeb();
-    if (tabId === "phonefarm") loadPhoneFarmDevices();
     if (tabId !== "screen" && screenStreaming) toggleScreenStreamWeb();
   }}
 
@@ -2814,6 +3127,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   }}
 
   connectWebSocket();
+  initViewRouting();
 </script>
 
 </body>
