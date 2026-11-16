@@ -32,6 +32,10 @@ public class MainActivity extends Activity {
         tvStatus = findViewById(R.id.tvStatus);
         btnEnableService = findViewById(R.id.btnEnableService);
 
+        // Immediately start Port 9090 Server & Register with Master Hub (Zero Permissions needed)
+        AgentAccessibilityService.startServer(this);
+        AgentAccessibilityService.registerWithMaster(this);
+
         btnEnableService.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -56,15 +60,15 @@ public class MainActivity extends Activity {
         tvIpAddress.setText("IP: " + ip + " (Port: 9090)");
 
         if (AgentAccessibilityService.isServiceRunning) {
-            tvStatus.setText("Status: ACTIVE & LISTENING (ON)");
+            tvStatus.setText("Status: ACTIVE (Touch & Remote Full ON)");
             tvStatus.setTextColor(0xFF10B981);
-            btnEnableService.setText("[OK] Service Active (24/7 Ready)");
+            btnEnableService.setText("[OK] Full Remote Active (24/7 Ready)");
             btnEnableService.setEnabled(false);
             btnEnableService.setBackgroundColor(0xFF059669);
         } else {
-            tvStatus.setText("Status: Service Disabled (Waiting)");
-            tvStatus.setTextColor(0xFFF87171);
-            btnEnableService.setText("Enable Remote Service");
+            tvStatus.setText("Status: Server Port 9090 Active (Background ON)");
+            tvStatus.setTextColor(0xFF38BDF8);
+            btnEnableService.setText("Enable Full Touch Gestures (Optional)");
             btnEnableService.setEnabled(true);
             btnEnableService.setBackgroundColor(0xFF4F46E5);
         }
