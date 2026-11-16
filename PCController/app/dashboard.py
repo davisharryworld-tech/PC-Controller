@@ -2984,13 +2984,31 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
             <span>IP: <strong style="color:#38bdf8;">${{p.ip}}</strong>:9090</span>
             <span>🔋 ${{p.battery}}% | 📐 ${{p.width}}x${{p.height}}</span>
           </div>
-          <div style="display:grid; grid-template-columns: repeat(5, 1fr) auto; gap:4px; margin-top:4px;">
+          <div style="display:grid; grid-template-columns: repeat(6, 1fr) auto; gap:4px; margin-top:4px;">
+            <button class="btn" style="background:#0c4a6e; border-color:#0284c7; color:#38bdf8; padding:6px 2px; font-size:0.72rem; font-weight:700;" title="Toggle Live Screen View" onclick="togglePhoneScreenBox('${{p.ip}}')">📺 Screen</button>
             <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Home" onclick="sendIndividualPhoneAction('${{p.ip}}', 'key', {{ key: 'home' }})">🏠</button>
             <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Back" onclick="sendIndividualPhoneAction('${{p.ip}}', 'key', {{ key: 'back' }})">◀</button>
             <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Swipe Up" onclick="sendIndividualPhoneAction('${{p.ip}}', 'swipe', {{ x1: 500, y1: 1400, x2: 500, y2: 400, duration: 250 }})">⬆️</button>
             <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Swipe Down" onclick="sendIndividualPhoneAction('${{p.ip}}', 'swipe', {{ x1: 500, y1: 400, x2: 500, y2: 1400, duration: 250 }})">⬇️</button>
             <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Tap Center" onclick="sendIndividualPhoneAction('${{p.ip}}', 'tap', {{ x: 500, y: 1000 }})">👆</button>
             <button class="btn" style="background:#450a0a; border-color:#7f1d1d; color:#fca5a5; padding:6px 6px; font-size:0.72rem;" title="Remove" onclick="deletePhoneFarmDevice('${{p.ip}}')">🗑️</button>
+          </div>
+
+          <!-- Live Screen Preview Box -->
+          <div id="pfScreenBox-${{p.ip}}" style="display:none; margin-top:8px; background:#020617; border:1px solid #1e293b; border-radius:12px; padding:10px; text-align:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:0.75rem; color:#38bdf8; font-weight:700;">📺 Live Screen (${{p.ip}})</span>
+              <div style="display:flex; gap:4px;">
+                <button class="chip" style="padding:2px 8px; font-size:0.7rem;" onclick="refreshPhoneScreen('${{p.ip}}')">🔄 Refresh</button>
+                <button id="pfAutoBtn-${{p.ip}}" class="chip" style="padding:2px 8px; font-size:0.7rem; color:#34d399;" onclick="toggleAutoPhoneScreen('${{p.ip}}')">⚡ Stream: OFF</button>
+              </div>
+            </div>
+            <div style="position:relative; display:inline-block; max-width:240px; width:100%;">
+              <img id="pfScreenImg-${{p.ip}}" src="/api/phones/${{p.ip}}/screen" style="width:100%; height:auto; border-radius:10px; border:1.5px solid #38bdf8; cursor:crosshair; display:block; box-shadow:0 6px 20px rgba(0,0,0,0.7);" onclick="onPhoneScreenTap(event, '${{p.ip}}', ${{p.width || 720}}, ${{p.height || 1600}})" alt="Live Screen">
+            </div>
+            <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">
+              👆 Screen par jahan tap karenge, mobile me wahan click hoga!
+            </div>
           </div>
         </div>
       `;
@@ -3153,6 +3171,75 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     const m = document.getElementById("pfQrModal");
     if (!m) return;
     m.style.display = m.style.display === "flex" ? "none" : "flex";
+  }}
+
+  // -------------------------------------------------------------
+  // Interactive Phone Screen Mirroring & Tap Stream Engine
+  // -------------------------------------------------------------
+  const pfScreenIntervals = {{}};
+
+  function togglePhoneScreenBox(ip) {{
+    const box = document.getElementById("pfScreenBox-" + ip);
+    if (!box) return;
+    const isHidden = box.style.display === "none";
+    box.style.display = isHidden ? "block" : "none";
+    if (isHidden) {{
+      refreshPhoneScreen(ip);
+    }} else {{
+      stopAutoPhoneScreen(ip);
+    }}
+  }}
+
+  function refreshPhoneScreen(ip) {{
+    const img = document.getElementById("pfScreenImg-" + ip);
+    if (img) {{
+      img.src = `/api/phones/${{ip}}/screen?t=` + Date.now();
+    }}
+  }}
+
+  function toggleAutoPhoneScreen(ip) {{
+    const btn = document.getElementById("pfAutoBtn-" + ip);
+    if (pfScreenIntervals[ip]) {{
+      stopAutoPhoneScreen(ip);
+      if (btn) {{
+        btn.textContent = "⚡ Stream: OFF";
+        btn.style.color = "#94a3b8";
+      }}
+      showToast(`Stream paused for ${{ip}}`);
+    }} else {{
+      pfScreenIntervals[ip] = setInterval(() => refreshPhoneScreen(ip), 1200);
+      if (btn) {{
+        btn.textContent = "⚡ Stream: ON 🟢";
+        btn.style.color = "#34d399";
+      }}
+      showToast(`⚡ Live Stream started for ${{ip}}`);
+      refreshPhoneScreen(ip);
+    }}
+  }}
+
+  function stopAutoPhoneScreen(ip) {{
+    if (pfScreenIntervals[ip]) {{
+      clearInterval(pfScreenIntervals[ip]);
+      delete pfScreenIntervals[ip];
+    }}
+  }}
+
+  function onPhoneScreenTap(evt, ip, nativeW, nativeH) {{
+    const rect = evt.target.getBoundingClientRect();
+    const clickX = evt.clientX - rect.left;
+    const clickY = evt.clientY - rect.top;
+
+    const pctX = clickX / rect.width;
+    const pctY = clickY / rect.height;
+
+    const targetX = Math.round(pctX * (nativeW || 720));
+    const targetY = Math.round(pctY * (nativeH || 1600));
+
+    logPhoneFarm(`👆 Interactive Screen Tap on ${{ip}} at (${{targetX}}, ${{targetY}})`);
+    showToast(`👆 Tap (${{targetX}}, ${{targetY}}) on ${{ip}}`);
+    sendIndividualPhoneAction(ip, "tap", {{ x: targetX, y: targetY }});
+
+    setTimeout(() => refreshPhoneScreen(ip), 450);
   }}
 
   connectWebSocket();

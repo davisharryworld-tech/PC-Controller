@@ -4,16 +4,21 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.Path;
 import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -97,11 +102,84 @@ public class AgentAccessibilityService extends AccessibilityService {
         } catch (Exception ignored) {}
     }
 
+    public static volatile byte[] latestScreenBytes = null;
+
+    public static byte[] getScreenshotBytes() {
+        if (Build.VERSION.SDK_INT >= 30 && instance != null) {
+            try {
+                instance.takeScreenshot(Display.DEFAULT_DISPLAY, appContext.getMainExecutor(), new TakeScreenshotCallback() {
+                    @Override
+                    public void onSuccess(ScreenshotResult result) {
+                        try {
+                            Bitmap bmp = Bitmap.wrapHardwareBuffer(result.getHardwareBuffer(), result.getColorSpace());
+                            if (bmp != null) {
+                                int w = bmp.getWidth();
+                                int h = bmp.getHeight();
+                                Bitmap scaled = Bitmap.createScaledBitmap(bmp, Math.max(w / 2, 360), Math.max(h / 2, 640), true);
+                                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                scaled.compress(Bitmap.CompressFormat.JPEG, 60, baos);
+                                latestScreenBytes = baos.toByteArray();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    @Override
+                    public void onFailure(int errorCode) {}
+                });
+            } catch (Exception ignored) {}
+        }
+
+        if (latestScreenBytes != null && latestScreenBytes.length > 100) {
+            return latestScreenBytes;
+        }
+
+        try {
+            Bitmap fallback = Bitmap.createBitmap(360, 640, Bitmap.Config.RGB_565);
+            Canvas canvas = new Canvas(fallback);
+            canvas.drawColor(0xFF0F172A);
+            Paint paint = new Paint();
+            paint.setColor(0xFF38BDF8);
+            paint.setTextSize(22);
+            paint.setAntiAlias(true);
+            canvas.drawText("Personal AI Remote Screen", 24, 80, paint);
+            paint.setColor(0xFF94A3B8);
+            paint.setTextSize(16);
+            canvas.drawText("Model: " + Build.MODEL, 24, 130, paint);
+            canvas.drawText("IP: " + getIpAddress() + ":9090", 24, 165, paint);
+            paint.setColor(0xFF10B981);
+            canvas.drawText("Status: Port 9090 Active", 24, 205, paint);
+            paint.setColor(0xFFF1F5F9);
+            paint.setTextSize(15);
+            canvas.drawText("Interactive Remote Touch", 24, 300, paint);
+            paint.setColor(0xFF64748B);
+            paint.setTextSize(13);
+            canvas.drawText("Tap anywhere to send touch event", 24, 330, paint);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            fallback.compress(Bitmap.CompressFormat.JPEG, 70, baos);
+            return baos.toByteArray();
+        } catch (Exception ignored) {
+            return new byte[0];
+        }
+    }
+
     private static void handleClient(Socket socket) {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String line = reader.readLine();
             if (line == null) {
+                socket.close();
+                return;
+            }
+
+            if (line.startsWith("GET /screen") || line.startsWith("GET /screenshot")) {
+                byte[] img = getScreenshotBytes();
+                OutputStream out = socket.getOutputStream();
+                out.write("HTTP/1.1 200 OK\r\n".getBytes());
+                out.write("Content-Type: image/jpeg\r\n".getBytes());
+                out.write("Access-Control-Allow-Origin: *\r\n".getBytes());
+                out.write(("Content-Length: " + img.length + "\r\n\r\n").getBytes());
+                out.write(img);
+                out.flush();
                 socket.close();
                 return;
             }
