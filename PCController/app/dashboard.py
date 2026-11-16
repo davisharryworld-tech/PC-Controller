@@ -628,6 +628,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   <!-- Navigation Tabs -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('quick', this)">⚡ Quick & Power</button>
+    <button class="tab-btn" style="border-color:#10b981; color:#34d399; font-weight:700;" onclick="switchTab('phonefarm', this)">📱 Phone Farm (100x)</button>
     <button class="tab-btn" style="border-color:#a855f7; color:#c084fc; font-weight:700;" onclick="switchTab('antigravity', this)">🤖 Antigravity Bot</button>
     <button class="tab-btn" style="border-color:#ef4444; color:#f87171; font-weight:700;" onclick="switchTab('youtube', this)">🎬 YouTube Studio</button>
     <button class="tab-btn" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="switchTab('vision', this)">👁️ AI Vision</button>
@@ -1212,6 +1213,125 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       </button>
     </div>
   </div>
+
+  <!-- TAB: PHONE FARM (100+ PHONES) -->
+  <div id="tab-phonefarm" class="tab-content">
+    <!-- Hub Overview & Setup Banner -->
+    <div class="card" style="border-color: rgba(16, 185, 129, 0.4);">
+      <div class="card-title" style="color: #34d399;">
+        <span>📱 100+ Phone Farm Hub & Multi-Device Control</span>
+        <button class="chip" style="background:#064e3b; border-color:#059669; color:#a7f3d0;" onclick="loadPhoneFarmDevices()">🔄 Refresh</button>
+      </div>
+      <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
+        Master Hotspot se connect hone wale tamam mobiles yahan auto-register hote hain. Har mobile me 20 KB ka agent background me 24/7 chalta hai aur port 9090 se direct control hota hai.
+      </div>
+
+      <!-- Quick Stats Badges -->
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 12px;">
+        <div class="chip" style="background:#0b1324; border-color:#1e293b; color:#34d399;">
+          🟢 Active: <strong id="pfOnlineCount" style="margin-left:4px;">0</strong> / <span id="pfTotalCount">0</span> Devices
+        </div>
+        <div class="chip" style="background:#0b1324; border-color:#1e293b; color:#38bdf8;">
+          🌐 Master Hub: <strong>{local_ip}:{port}</strong>
+        </div>
+        <div class="chip" style="background:#0b1324; border-color:#10b981; color:#a7f3d0; cursor:pointer;" onclick="copyText('http://{local_ip}:{port}/setup', 'Setup link copied!')">
+          📋 Copy Setup Link (for phones)
+        </div>
+      </div>
+
+      <!-- Auto Scan & Manual Add Toolbar -->
+      <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+        <input type="text" id="pfManualIp" class="input-bar" style="flex:1; min-width:140px;" placeholder="Add IP (e.g. 192.168.43.45)...">
+        <button class="btn" style="background:#1e293b; border-color:#334155; padding:8px 12px; font-size:0.78rem;" onclick="addPhoneFarmManualIp()">➕ Add IP</button>
+        <button class="btn" id="pfScanBtn" style="background:#065f46; border-color:#059669; color:#fff; padding:8px 12px; font-size:0.78rem; font-weight:700;" onclick="scanPhoneFarmSubnet()">🔍 Auto-Scan Subnet</button>
+      </div>
+    </div>
+
+    <!-- Master Remote Control Panel -->
+    <div class="card" style="border-color: rgba(56, 189, 248, 0.35);">
+      <div class="card-title" style="color: #38bdf8;">
+        <span>🎮 Universal Remote Controller</span>
+      </div>
+
+      <!-- Target Selection Dropdown -->
+      <div style="margin-bottom: 12px;">
+        <label style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:4px;">Target Device(s):</label>
+        <select id="pfTargetSelect" class="input-bar" style="width:100%; font-weight:700; color:#34d399; background:#0b1120;">
+          <option value="all">⚡ ALL PHONES (Broadcast to 100+ Devices Simultaneously)</option>
+        </select>
+      </div>
+
+      <!-- Navigation Global Keys -->
+      <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px; font-weight:600;">System Navigation Keys:</div>
+      <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-bottom:12px;">
+        <button class="btn" style="background:#0d1526; border-color:#1e293b; padding:9px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('key', {{ key: 'back' }})">◀ Back</button>
+        <button class="btn" style="background:#0d1526; border-color:#1e293b; padding:9px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('key', {{ key: 'home' }})">🏠 Home</button>
+        <button class="btn" style="background:#0d1526; border-color:#1e293b; padding:9px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('key', {{ key: 'recents' }})">🔲 Apps</button>
+        <button class="btn" style="background:#0d1526; border-color:#1e293b; padding:9px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('key', {{ key: 'notifications' }})">🔔 Notif</button>
+        <button class="btn" style="background:#0d1526; border-color:#1e293b; padding:9px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('key', {{ key: 'lock' }})">🔒 Lock</button>
+      </div>
+
+      <!-- Directional Swipes / Scroll -->
+      <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px; font-weight:600;">Directional Gestures & Swipes:</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:6px; margin-bottom:12px;">
+        <button class="btn" style="background:#131d33; border-color:#223252; padding:10px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('swipe', {{ x1: 500, y1: 1400, x2: 500, y2: 400, duration: 250 }})">⬆️ Swipe Up</button>
+        <button class="btn" style="background:#131d33; border-color:#223252; padding:10px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('swipe', {{ x1: 500, y1: 400, x2: 500, y2: 1400, duration: 250 }})">⬇️ Swipe Down</button>
+        <button class="btn" style="background:#131d33; border-color:#223252; padding:10px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('swipe', {{ x1: 800, y1: 800, x2: 200, y2: 800, duration: 250 }})">⬅️ Swipe Left</button>
+        <button class="btn" style="background:#131d33; border-color:#223252; padding:10px 4px; font-size:0.78rem;" onclick="sendPhoneFarmAction('swipe', {{ x1: 200, y1: 800, x2: 800, y2: 800, duration: 250 }})">➡️ Swipe Right</button>
+      </div>
+
+      <!-- Text Typing Input -->
+      <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px; font-weight:600;">Broadcast Text Typing:</div>
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <input type="text" id="pfTextInput" class="input-bar" placeholder="Type text to type into active inputs...">
+        <button class="btn" style="background:#4f46e5; border-color:#4338ca; padding:0 14px; font-size:0.8rem; font-weight:700; white-space:nowrap;" onclick="sendPhoneFarmType()">⌨️ Send Text</button>
+      </div>
+
+      <!-- App Launcher -->
+      <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px; font-weight:600;">Launch App on Devices:</div>
+      <div style="display:flex; gap:6px; margin-bottom:6px;">
+        <input type="text" id="pfAppPackage" class="input-bar" placeholder="Package name (e.g. com.android.chrome)...">
+        <button class="btn" style="background:#0891b2; border-color:#0e7490; padding:0 14px; font-size:0.8rem; font-weight:700; white-space:nowrap;" onclick="sendPhoneFarmLaunchApp()">🚀 Launch App</button>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px;">
+        <span class="chip" onclick="document.getElementById('pfAppPackage').value='com.android.chrome'; sendPhoneFarmLaunchApp();">🌐 Chrome</span>
+        <span class="chip" onclick="document.getElementById('pfAppPackage').value='com.google.android.youtube'; sendPhoneFarmLaunchApp();">🎬 YouTube</span>
+        <span class="chip" onclick="document.getElementById('pfAppPackage').value='com.whatsapp'; sendPhoneFarmLaunchApp();">💬 WhatsApp</span>
+        <span class="chip" onclick="document.getElementById('pfAppPackage').value='com.android.settings'; sendPhoneFarmLaunchApp();">⚙️ Settings</span>
+      </div>
+
+      <!-- Custom Precision Tap -->
+      <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px; font-weight:600;">Precision Coordinate Tap (X, Y):</div>
+      <div style="display:flex; gap:6px;">
+        <input type="number" id="pfTapX" class="input-bar" style="width:80px;" placeholder="X (500)" value="500">
+        <input type="number" id="pfTapY" class="input-bar" style="width:80px;" placeholder="Y (1000)" value="1000">
+        <button class="btn" style="flex:1; background:#059669; border-color:#047857; font-size:0.8rem; font-weight:700;" onclick="sendPhoneFarmTap()">👆 Perform Tap</button>
+      </div>
+    </div>
+
+    <!-- Connected Devices Farm Grid -->
+    <div class="card">
+      <div class="card-title">
+        <span>📋 Connected Devices Farm (<span id="pfCardCount">0</span>)</span>
+      </div>
+      <div id="pfDevicesList" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:10px; margin-top:8px;">
+        <div style="color:#64748b; font-size:0.82rem; grid-column: 1/-1; text-align:center; padding:20px;">
+          Koi device connect nahi hai. Hotspot connect karke <strong>/setup</strong> se 20 KB APK install karein ya <strong>Auto-Scan Subnet</strong> dabayein.
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Farm Command Log -->
+    <div class="card">
+      <div class="card-title">
+        <span>📜 Farm Command Activity Log</span>
+        <button class="chip" onclick="document.getElementById('pfActivityLog').innerHTML=''">Clear</button>
+      </div>
+      <div id="pfActivityLog" class="log-box" style="max-height:110px;">
+        <div class="log-entry">[Ready] Phone Farm Controller initialized on port 9090.</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1262,6 +1382,7 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
     if (tabId === "whatsapp") loadContacts();
     if (tabId === "files") loadPCFilesWeb();
     if (tabId === "quick") loadWolInfoWeb();
+    if (tabId === "phonefarm") loadPhoneFarmDevices();
     if (tabId !== "screen" && screenStreaming) toggleScreenStreamWeb();
   }}
 
@@ -1708,11 +1829,11 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
       try {{ ws.close(); }} catch(e) {{}}
     }}
     // Request Notification permission
-  if ("Notification" in window && Notification.permission === "default") {{
-    try {{ Notification.requestPermission(); }} catch(e) {{}}
-  }}
+    if ("Notification" in window && Notification.permission === "default") {{
+      try {{ Notification.requestPermission(); }} catch(e) {{}}
+    }}
 
-  connectWebSocket();
+    connectWebSocket();
   }}
 
   function sendAction(actionName, payload = {{}}) {{
@@ -2459,6 +2580,237 @@ def get_dashboard_html(local_ip: str, port: int, project_name: str, tailscale_ip
   // Request Notification permission
   if ("Notification" in window && Notification.permission === "default") {{
     try {{ Notification.requestPermission(); }} catch(e) {{}}
+  }}
+
+  // -------------------------------------------------------------
+  // Phone Farm (100+ Devices) Management & Remote Control
+  // -------------------------------------------------------------
+  let pfPhones = [];
+
+  async function loadPhoneFarmDevices() {{
+    try {{
+      const res = await authFetch("/api/phones");
+      const data = await res.json();
+      pfPhones = data.phones || [];
+
+      const totalEl = document.getElementById("pfTotalCount");
+      const onlineEl = document.getElementById("pfOnlineCount");
+      const cardEl = document.getElementById("pfCardCount");
+      if (totalEl) totalEl.textContent = data.total || 0;
+      if (onlineEl) onlineEl.textContent = data.online_count || 0;
+      if (cardEl) cardEl.textContent = data.total || 0;
+
+      // Update target selector
+      const sel = document.getElementById("pfTargetSelect");
+      if (sel) {{
+        const curVal = sel.value;
+        sel.innerHTML = '<option value="all">⚡ ALL PHONES (Broadcast to 100+ Devices Simultaneously)</option>';
+        pfPhones.forEach(p => {{
+          const opt = document.createElement("option");
+          opt.value = p.ip;
+          opt.textContent = `📱 ${{p.model}} (${{p.ip}}) - Bat: ${{p.battery}}%`;
+          sel.appendChild(opt);
+        }});
+        if (curVal) sel.value = curVal;
+      }}
+
+      // Render device cards
+      renderPhoneFarmCards();
+    }} catch(e) {{
+      console.error("Failed to load phone farm devices:", e);
+    }}
+  }}
+
+  function renderPhoneFarmCards() {{
+    const container = document.getElementById("pfDevicesList");
+    if (!container) return;
+    if (pfPhones.length === 0) {{
+      container.innerHTML = `
+        <div style="color:#64748b; font-size:0.82rem; grid-column: 1/-1; text-align:center; padding:20px;">
+          Koi device connect nahi hai. Hotspot connect karke <strong>/setup</strong> se 20 KB APK install karein ya <strong>Auto-Scan Subnet</strong> dabayein.
+        </div>`;
+      return;
+    }}
+
+    container.innerHTML = pfPhones.map(p => {{
+      const isOnline = p.is_online;
+      const statusBadge = isOnline ? 
+        '<span style="background:rgba(16,185,129,0.2); color:#34d399; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">🟢 ONLINE</span>' :
+        '<span style="background:rgba(239,68,68,0.2); color:#f87171; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">⏸️ IDLE</span>';
+
+      return `
+        <div style="background:#0b1120; border:1px solid ${{isOnline ? '#1f2d47' : '#334155'}}; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#f1f5f9; font-size:0.86rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📱 ${{p.model || 'Android Phone'}}</strong>
+            ${{statusBadge}}
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.74rem; color:#94a3b8;">
+            <span>IP: <strong style="color:#38bdf8;">${{p.ip}}</strong>:9090</span>
+            <span>🔋 ${{p.battery}}% | 📐 ${{p.width}}x${{p.height}}</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(5, 1fr) auto; gap:4px; margin-top:4px;">
+            <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Home" onclick="sendIndividualPhoneAction('${{p.ip}}', 'key', {{ key: 'home' }})">🏠</button>
+            <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Back" onclick="sendIndividualPhoneAction('${{p.ip}}', 'key', {{ key: 'back' }})">◀</button>
+            <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Swipe Up" onclick="sendIndividualPhoneAction('${{p.ip}}', 'swipe', {{ x1: 500, y1: 1400, x2: 500, y2: 400, duration: 250 }})">⬆️</button>
+            <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Swipe Down" onclick="sendIndividualPhoneAction('${{p.ip}}', 'swipe', {{ x1: 500, y1: 400, x2: 500, y2: 1400, duration: 250 }})">⬇️</button>
+            <button class="btn" style="background:#131c2e; border-color:#1e293b; padding:6px 2px; font-size:0.72rem;" title="Tap Center" onclick="sendIndividualPhoneAction('${{p.ip}}', 'tap', {{ x: 500, y: 1000 }})">👆</button>
+            <button class="btn" style="background:#450a0a; border-color:#7f1d1d; color:#fca5a5; padding:6px 6px; font-size:0.72rem;" title="Remove" onclick="deletePhoneFarmDevice('${{p.ip}}')">🗑️</button>
+          </div>
+        </div>
+      `;
+    }}).join("");
+  }}
+
+  function logPhoneFarm(msg) {{
+    const el = document.getElementById("pfActivityLog");
+    if (!el) return;
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement("div");
+    entry.className = "log-entry";
+    entry.textContent = `[${{time}}] ${{msg}}`;
+    el.prepend(entry);
+  }}
+
+  async function scanPhoneFarmSubnet() {{
+    const btn = document.getElementById("pfScanBtn");
+    if (btn) {{
+      btn.disabled = true;
+      btn.textContent = "⏳ Scanning...";
+    }}
+    showToast("🔍 Subnet scan shuru ho gaya hai (port 9090)...");
+    logPhoneFarm("Starting subnet scan on port 9090 across 254 IPs...");
+
+    try {{
+      const res = await authFetch("/api/phones/scan", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{}})
+      }});
+      const data = await res.json();
+      logPhoneFarm(`Scan finished! Found ${{data.discovered}} phone(s) on subnet ${{data.subnet}}.`);
+      showToast(`✅ Scan Complete! ${{data.discovered}} phone(s) mile.`);
+      await loadPhoneFarmDevices();
+    }} catch(e) {{
+      logPhoneFarm(`Scan failed: ${{e.message}}`);
+      showToast("⚠️ Subnet scan me masla aaya", true);
+    }} finally {{
+      if (btn) {{
+        btn.disabled = false;
+        btn.textContent = "🔍 Auto-Scan Subnet";
+      }}
+    }}
+  }}
+
+  async function addPhoneFarmManualIp() {{
+    const ipInput = document.getElementById("pfManualIp");
+    const ip = ipInput.value.trim();
+    if (!ip) return showToast("⚠️ IP address likhein", true);
+
+    logPhoneFarm(`Adding IP: ${{ip}}...`);
+    try {{
+      const res = await authFetch("/api/phones/add", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ ip: ip, port: 9090 }})
+      }});
+      const data = await res.json();
+      if (data.success) {{
+        showToast(`📱 Phone ${{ip}} add hogaya!`);
+        logPhoneFarm(`Device ${{ip}} (${{data.phone.model}}) registered successfully.`);
+        ipInput.value = "";
+        await loadPhoneFarmDevices();
+      }} else {{
+        showToast("⚠️ Device connect nahi hui", true);
+      }}
+    }} catch(e) {{
+      showToast(`⚠️ Error: ${{e.message}}`, true);
+    }}
+  }}
+
+  async function deletePhoneFarmDevice(ip) {{
+    if (!confirm(`Phone ${{ip}} ko farm list se hatana chahte hain?`)) return;
+    try {{
+      await authFetch(`/api/phones/${{ip}}`, {{ method: "DELETE" }});
+      showToast(`Device ${{ip}} removed.`);
+      logPhoneFarm(`Removed ${{ip}} from farm.`);
+      await loadPhoneFarmDevices();
+    }} catch(e) {{
+      showToast(`Error removing: ${{e.message}}`, true);
+    }}
+  }}
+
+  async function sendPhoneFarmAction(action, extraParams = {{}}) {{
+    const target = document.getElementById("pfTargetSelect").value || "all";
+    const payload = {{ target: target, action: action, ...extraParams }};
+
+    const targetDesc = target === "all" ? "ALL 100+ PHONES" : target;
+    logPhoneFarm(`Dispatching [${{action.toUpperCase()}}] to ${{targetDesc}}...`);
+
+    try {{
+      const res = await authFetch("/api/phones/control", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify(payload)
+      }});
+      const data = await res.json();
+      if (data.success) {{
+        if (data.broadcast) {{
+          logPhoneFarm(`✅ Broadcast [${{action}}] sent to ${{data.count}} devices!`);
+          showToast(`⚡ Action '${{action}}' sent to ${{data.count}} phones!`);
+        }} else {{
+          logPhoneFarm(`✅ Action [${{action}}] executed on ${{target}}!`);
+          showToast(`📱 Action '${{action}}' executed on ${{target}}!`);
+        }}
+      }} else {{
+        logPhoneFarm(`⚠️ Failed: ${{data.message || 'Error'}}`);
+        showToast(`⚠️ ${{data.message || 'Command failed'}}`, true);
+      }}
+    }} catch(e) {{
+      logPhoneFarm(`Error sending command: ${{e.message}}`);
+      showToast(`⚠️ Command error: ${{e.message}}`, true);
+    }}
+  }}
+
+  async function sendIndividualPhoneAction(ip, action, extraParams = {{}}) {{
+    const payload = {{ target: ip, action: action, ...extraParams }};
+    logPhoneFarm(`Dispatching [${{action.toUpperCase()}}] to ${{ip}}...`);
+    try {{
+      const res = await authFetch("/api/phones/control", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify(payload)
+      }});
+      const data = await res.json();
+      if (data.success) {{
+        logPhoneFarm(`✅ [${{action}}] on ${{ip}} OK`);
+        showToast(`📱 ${{ip}}: ${{action}} OK`);
+      }} else {{
+        showToast(`⚠️ ${{ip}} error`, true);
+      }}
+    }} catch(e) {{
+      showToast(`⚠️ ${{e.message}}`, true);
+    }}
+  }}
+
+  function sendPhoneFarmType() {{
+    const input = document.getElementById("pfTextInput");
+    const text = input.value;
+    if (!text) return showToast("⚠️ Pehle text likhein", true);
+    sendPhoneFarmAction("type", {{ text: text }});
+    input.value = "";
+  }}
+
+  function sendPhoneFarmLaunchApp() {{
+    const input = document.getElementById("pfAppPackage");
+    const pkg = input.value.trim();
+    if (!pkg) return showToast("⚠️ Package name likhein", true);
+    sendPhoneFarmAction("open_app", {{ package: pkg }});
+  }}
+
+  function sendPhoneFarmTap() {{
+    const x = parseInt(document.getElementById("pfTapX").value || "500", 10);
+    const y = parseInt(document.getElementById("pfTapY").value || "1000", 10);
+    sendPhoneFarmAction("tap", {{ x: x, y: y }});
   }}
 
   connectWebSocket();

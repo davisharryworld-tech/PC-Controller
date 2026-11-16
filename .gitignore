@@ -33,6 +33,7 @@ contacts.json
 
 # Android & Gradle
 *.apk
+!PCController/static/phone_agent.apk
 .gradle/
 **/android/.gradle/
 local.properties

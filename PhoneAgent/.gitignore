@@ -1,0 +1,7 @@
+bin/
+dex_out/
+gen/
+compiled_res.zip
+unsigned.apk
+aligned.apk
+*.idsig

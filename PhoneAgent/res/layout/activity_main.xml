@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#0F172A">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📱 Phone Farm Agent"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#38BDF8"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tvIpAddress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IP: Detecting..."
+        android:textSize="14sp"
+        android:textColor="#94A3B8"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Status: Service Disabled ⏸️"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="#F87171"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnEnableService"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="⚡ Enable Remote Service"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:backgroundTint="#4F46E5"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="One-time setup: Tap Enable, toggle Phone Farm Agent ON."
+        android:textSize="12sp"
+        android:textColor="#64748B"
+        android:gravity="center"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>

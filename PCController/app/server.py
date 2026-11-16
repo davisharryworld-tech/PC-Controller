@@ -12,11 +12,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Fil
 import pyautogui
 import pyperclip
 import psutil
+import time
 
 from app.actions import execute_universal_action
 from app.ai_parser import interpret_and_execute_nl
 from app.config import settings
 from app.dashboard import get_dashboard_html, get_device_locked_html
+from app.setup_page import get_setup_html
 from app.logger import logger
 from app.schemas import HealthStatus, SystemInfoResponse, WSMessageIn, WSMessageOut
 from app.ws_manager import ws_manager
@@ -90,6 +92,20 @@ app.add_middleware(
 async def device_access_guard(request: Request, call_next):
     client_ip = request.client.host if request.client else ""
 
+    # Public endpoints for Phone Farm Agent download, setup, captive portal, and auto-registration
+    public_paths = (
+        "/agent.apk",
+        "/setup",
+        "/generate_204",
+        "/gen_204",
+        "/hotspot-detect.html",
+        "/connecttest.txt",
+        "/api/phones/register",
+        "/static/",
+    )
+    if any(request.url.path == p or request.url.path.startswith(p) for p in public_paths):
+        return await call_next(request)
+
     # 1. Local PC access is always allowed
     if client_ip in ("127.0.0.1", "::1", "localhost"):
         return await call_next(request)
@@ -159,6 +175,230 @@ async def health_check():
         port=settings.PORT,
         connected_clients=ws_manager.connection_count,
     )
+
+
+# -------------------------------------------------------------
+# Phone Farm Hub State & Endpoints (100+ Android Devices)
+# -------------------------------------------------------------
+registered_phones: dict[str, dict] = {}
+
+
+async def send_phone_command(ip: str, port: int = 9090, payload: dict = None, timeout: float = 2.0) -> dict:
+    """Sends an HTTP POST command directly to the phone's port 9090 raw socket server."""
+    if payload is None:
+        payload = {"action": "info"}
+    try:
+        body = json.dumps(payload).encode("utf-8")
+        req = (
+            f"POST / HTTP/1.1\r\nHost: {ip}:{port}\r\nContent-Type: application/json\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n"
+        ).encode("utf-8") + body
+
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=timeout)
+        writer.write(req)
+        await writer.drain()
+        raw_resp = await asyncio.wait_for(reader.read(4096), timeout=timeout)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        if b"\r\n\r\n" in raw_resp:
+            body_bytes = raw_resp.split(b"\r\n\r\n", 1)[1]
+            return json.loads(body_bytes.decode("utf-8", errors="replace"))
+        return {"success": True, "ip": ip}
+    except Exception as e:
+        return {"success": False, "ip": ip, "error": str(e)}
+
+
+@app.get("/agent.apk")
+async def download_agent_apk():
+    """Serves the ultra-lightweight (~20 KB) PhoneAgent APK for 1-tap download."""
+    apk_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "phone_agent.apk")
+    if not os.path.exists(apk_path):
+        apk_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "PhoneAgent", "phone_agent.apk")
+    if os.path.exists(apk_path):
+        return FileResponse(apk_path, media_type="application/vnd.android.package-archive", filename="phone_agent.apk")
+    return JSONResponse(status_code=404, content={"error": "APK not found"})
+
+
+@app.get("/setup", response_class=HTMLResponse)
+@app.get("/generate_204", response_class=HTMLResponse)
+@app.get("/gen_204", response_class=HTMLResponse)
+@app.get("/hotspot-detect.html", response_class=HTMLResponse)
+@app.get("/connecttest.txt", response_class=HTMLResponse)
+async def serve_setup_endpoint(request: Request):
+    """Serves the 1-tap setup page for phones connecting to hotspot / captive portal."""
+    client_ip = request.client.host if request.client else "Unknown"
+    return HTMLResponse(
+        content=get_setup_html(
+            client_ip=client_ip,
+            local_ip=settings.LOCAL_IP,
+            port=settings.PORT
+        )
+    )
+
+
+@app.post("/api/phones/register")
+async def register_phone(request: Request):
+    """Receives auto-registration from PhoneAgent on boot or service connect."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    client_ip = request.client.host if request.client and request.client.host else "127.0.0.1"
+    phone_ip = payload.get("ip") or client_ip
+    if phone_ip in ("127.0.0.1", "localhost", ""):
+        phone_ip = client_ip
+
+    registered_phones[phone_ip] = {
+        "ip": phone_ip,
+        "port": int(payload.get("port", 9090)),
+        "model": payload.get("model", "Android Device"),
+        "android": payload.get("android", "Unknown"),
+        "battery": int(payload.get("battery", 100)),
+        "width": int(payload.get("width", 1080)),
+        "height": int(payload.get("height", 2400)),
+        "last_seen": time.time(),
+        "status": "online"
+    }
+    logger.info(f"📱 Registered Phone Agent: {phone_ip} ({payload.get('model', 'Device')})")
+    return {"success": True, "registered": phone_ip, "status": "active"}
+
+
+@app.get("/api/phones")
+async def get_registered_phones():
+    """Returns list of registered phones with live status."""
+    now = time.time()
+    phone_list = []
+    for ip, info in list(registered_phones.items()):
+        is_online = (now - info.get("last_seen", 0)) < 300
+        phone_list.append({
+            **info,
+            "is_online": is_online
+        })
+    phone_list.sort(key=lambda p: p["ip"])
+    return {
+        "total": len(phone_list),
+        "online_count": sum(1 for p in phone_list if p.get("is_online")),
+        "phones": phone_list
+    }
+
+
+@app.post("/api/phones/scan")
+async def scan_phone_subnet(request: Request):
+    """Scans local subnet for any phones running AgentAccessibilityService on port 9090."""
+    try:
+        data = await request.json()
+        subnet_prefix = data.get("subnet", "")
+    except Exception:
+        subnet_prefix = ""
+
+    if not subnet_prefix:
+        parts = settings.LOCAL_IP.split(".")
+        if len(parts) == 4:
+            subnet_prefix = f"{parts[0]}.{parts[1]}.{parts[2]}"
+        else:
+            subnet_prefix = "192.168.43"
+
+    async def probe_ip(ip: str):
+        res = await send_phone_command(ip, port=9090, payload={"action": "info"}, timeout=0.4)
+        if res.get("success"):
+            registered_phones[ip] = {
+                "ip": ip,
+                "port": 9090,
+                "model": res.get("model", "Android Device"),
+                "android": res.get("android", "Unknown"),
+                "battery": int(res.get("battery", 100)),
+                "width": int(res.get("width", 1080)),
+                "height": int(res.get("height", 2400)),
+                "last_seen": time.time(),
+                "status": "online"
+            }
+            return ip
+        return None
+
+    tasks = [probe_ip(f"{subnet_prefix}.{i}") for i in range(1, 255)]
+    found_results = await asyncio.gather(*tasks, return_exceptions=True)
+    found_ips = [r for r in found_results if isinstance(r, str)]
+
+    logger.info(f"Subnet scan ({subnet_prefix}.0/24) complete. Discovered {len(found_ips)} phones: {found_ips}")
+    return {
+        "success": True,
+        "subnet": f"{subnet_prefix}.0/24",
+        "discovered": len(found_ips),
+        "phones": [registered_phones[ip] for ip in found_ips]
+    }
+
+
+@app.post("/api/phones/add")
+async def add_phone_by_ip(request: Request):
+    """Manually adds a phone by IP and checks its responsiveness on port 9090."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    ip = data.get("ip", "").strip()
+    port = int(data.get("port", 9090))
+    if not ip:
+        return JSONResponse(status_code=400, content={"error": "IP is required"})
+
+    res = await send_phone_command(ip, port=port, payload={"action": "info"}, timeout=1.5)
+    registered_phones[ip] = {
+        "ip": ip,
+        "port": port,
+        "model": res.get("model", "Android Device"),
+        "android": res.get("android", "Unknown"),
+        "battery": int(res.get("battery", 100)),
+        "width": int(res.get("width", 1080)),
+        "height": int(res.get("height", 2400)),
+        "last_seen": time.time(),
+        "status": "online" if res.get("success") else "pending"
+    }
+    return {"success": True, "phone": registered_phones[ip], "probed": res.get("success", False)}
+
+
+@app.post("/api/phones/control")
+async def control_phones(request: Request):
+    """Dispatches touch, swipe, key, text, or launch actions to target or ALL phones."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    target = payload.get("target", "all")
+    action_data = {k: v for k, v in payload.items() if k != "target"}
+
+    if target == "all":
+        targets = list(registered_phones.keys())
+        if not targets:
+            return {"success": False, "message": "No phones registered in farm yet. Scan or add IP first."}
+
+        async def send_to_one(ip: str):
+            port = registered_phones[ip].get("port", 9090)
+            r = await send_phone_command(ip, port=port, payload=action_data, timeout=2.0)
+            if r.get("success"):
+                registered_phones[ip]["last_seen"] = time.time()
+            return {"ip": ip, "result": r}
+
+        results = await asyncio.gather(*[send_to_one(ip) for ip in targets], return_exceptions=True)
+        clean_results = [r if isinstance(r, dict) else {"error": str(r)} for r in results]
+        return {"success": True, "broadcast": True, "count": len(clean_results), "results": clean_results}
+    else:
+        port = registered_phones.get(target, {}).get("port", 9090) if target in registered_phones else 9090
+        res = await send_phone_command(target, port=port, payload=action_data, timeout=2.5)
+        if res.get("success") and target in registered_phones:
+            registered_phones[target]["last_seen"] = time.time()
+        return {"success": res.get("success", False), "target": target, "result": res}
+
+
+@app.delete("/api/phones/{ip}")
+async def delete_phone(ip: str):
+    """Removes a phone from the farm registry."""
+    if ip in registered_phones:
+        del registered_phones[ip]
+        return {"success": True, "removed": ip}
+    return {"success": False, "message": "Phone not found"}
 
 
 @app.get("/api/system", response_model=SystemInfoResponse)

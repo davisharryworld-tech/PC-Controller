@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Phone Agent</string>
+    <string name="accessibility_service_label">Phone Farm Remote Agent</string>
+    <string name="accessibility_service_description">Enables remote multi-device management, clicks, swipes, and automated testing.</string>
+</resources>
